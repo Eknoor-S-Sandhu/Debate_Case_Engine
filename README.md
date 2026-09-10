@@ -3,14 +3,16 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 1
+## Current status: Phase 1, Milestone 2
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 1 is the scaffold only: project configuration, settings, schemas,
-logging, and tests. There is no ingestion, no search, and no user interface
-yet. Later phases add the agent layer.
+Milestone 2 discovers and inspects local `.docx`, `.doc`, `.pdf`, `.md`, and
+`.txt` files. It extracts text and lightweight document structure, reports
+malformed files, and flags image-only PDFs for OCR. It does not yet detect
+debate argument structure, persist documents, search, or provide a user
+interface. Later phases add those capabilities and the agent layer.
 
 ## Requirements
 
@@ -40,6 +42,23 @@ ruff check .        # lint
 ruff format .       # format
 ```
 
+## Inspect a debate library
+
+Pass any local archive folder to the read-only inspector:
+
+```bash
+python scripts/inspect_library.py "/path/to/debate/archive"
+python scripts/inspect_library.py "/path/to/debate/archive" --limit 20
+```
+
+The command recursively discovers supported documents and prints counts by
+format, inferred source group, and parse status. It does not modify source
+files or persist extracted text. Unsupported files, malformed documents,
+legacy `.doc` conversion failures, and likely scanned PDFs are reported.
+
+Legacy `.doc` parsing uses macOS `/usr/bin/textutil` when available. No OCR is
+performed.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -56,11 +75,12 @@ DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL=1.2
 | Directory | Contents |
 | --- | --- |
 | `data/raw/` | Your debate library - the source `.docx`, `.doc`, `.pdf`, `.md`, and `.txt` files |
-| `data/parsed/` | Extracted text and chunks produced by ingestion |
+| `data/parsed/` | Future extracted text and chunks |
 | `data/indexes/` | SQLite metadata database and the vector index |
 | `data/models/` | Cached embedding model weights |
 
-None of these directories accept files yet; ingestion arrives in Milestone 2.
+You may place an archive under `data/raw/` or inspect it in place elsewhere.
+Milestone 2 parses in memory only and does not write to `data/parsed/`.
 
 > **Your debate archive is never committed.** Everything under `data/` is
 > gitignored apart from the `.gitkeep` placeholders that keep the folders

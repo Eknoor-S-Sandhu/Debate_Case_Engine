@@ -91,6 +91,38 @@ class FreshnessModifiers(BaseModel):
     unknown: float = Field(default=1.00, ge=0.0)
 
 
+class SourceGroupPatterns(BaseModel):
+    """Normalized folder-name hints used during source-group inference.
+
+    Discovery owns the matching behavior; configuration owns the vocabulary so
+    archive-specific naming can be adjusted without editing parser code.
+    """
+
+    personal: tuple[str, ...] = (
+        "personal",
+        "personal files",
+        "personal debate files",
+        "my files",
+        "my debate files",
+    )
+    past_case: tuple[str, ...] = (
+        "past case",
+        "past cases",
+        "previous case",
+        "previous cases",
+        "old case",
+        "old cases",
+    )
+    other: tuple[str, ...] = (
+        "other",
+        "other files",
+        "other debate files",
+        "non personal",
+        "non personal files",
+        "non personal debate files",
+    )
+
+
 class Settings(BaseSettings):
     """Runtime settings for the knowledge and retrieval foundation."""
 
@@ -121,6 +153,7 @@ class Settings(BaseSettings):
     source_weights: SourceWeights = Field(default_factory=SourceWeights)
     motion_similarity_boosts: MotionSimilarityBoosts = Field(default_factory=MotionSimilarityBoosts)
     freshness_modifiers: FreshnessModifiers = Field(default_factory=FreshnessModifiers)
+    source_group_patterns: SourceGroupPatterns = Field(default_factory=SourceGroupPatterns)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
