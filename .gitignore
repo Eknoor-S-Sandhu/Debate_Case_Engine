@@ -1,0 +1,71 @@
+# ---------------------------------------------------------------------------
+# Debate library and generated artifacts
+#
+# The debate archive is private and must never reach GitHub. Each data
+# directory keeps its .gitkeep so the folder structure stays tracked while
+# every real file inside it is ignored.
+# ---------------------------------------------------------------------------
+data/raw/*
+!data/raw/.gitkeep
+data/parsed/*
+!data/parsed/.gitkeep
+data/indexes/*
+!data/indexes/.gitkeep
+data/models/*
+!data/models/.gitkeep
+
+# Debate source files, wherever they land outside data/
+*.docx
+*.doc
+*.pdf
+!tests/fixtures/**
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# ---------------------------------------------------------------------------
+# Tooling caches and reports
+# ---------------------------------------------------------------------------
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# Model / embedding caches that can appear locally
+# ---------------------------------------------------------------------------
+.cache/
+.chroma/
+chroma/
+.huggingface/
+huggingface/
+.torch/
+sentence_transformers/
+*.onnx
+*.safetensors
+*.bin
+*.pt
+*.ckpt
+
+# ---------------------------------------------------------------------------
+# Environment and editor
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+.idea/
+.vscode/
