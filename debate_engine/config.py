@@ -150,6 +150,17 @@ class ChunkingSettings(BaseModel):
         return self
 
 
+class DuplicateDetectionSettings(BaseModel):
+    """Conservative fuzzy-matching safeguards and candidate-blocking limits."""
+
+    minimum_length_ratio: float = Field(default=0.82, ge=0.0, le=1.0)
+    updated_statistic_threshold: float = Field(default=0.97, ge=0.0, le=1.0)
+    fallback_similarity_threshold: float = Field(default=0.98, ge=0.0, le=1.0)
+    minimum_fuzzy_characters: int = Field(default=40, ge=1)
+    candidate_anchor_count: int = Field(default=6, ge=1)
+    length_bucket_ratio: float = Field(default=1.25, gt=1.0)
+
+
 class Settings(BaseSettings):
     """Runtime settings for the knowledge and retrieval foundation."""
 
@@ -185,6 +196,9 @@ class Settings(BaseSettings):
         default_factory=StructureDetectionSettings
     )
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
+    duplicate_detection: DuplicateDetectionSettings = Field(
+        default_factory=DuplicateDetectionSettings
+    )
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)

@@ -106,6 +106,16 @@ def test_fallback_chunking_limits_are_configured() -> None:
     assert chunking.fallback_overlap_tokens < chunking.fallback_max_tokens
 
 
+def test_duplicate_detection_safeguards_are_configured() -> None:
+    settings = Settings()
+    detection = settings.duplicate_detection
+
+    assert settings.duplicate_similarity_threshold == pytest.approx(0.92)
+    assert detection.updated_statistic_threshold == pytest.approx(0.97)
+    assert detection.fallback_similarity_threshold == pytest.approx(0.98)
+    assert detection.minimum_length_ratio == pytest.approx(0.82)
+
+
 # --- 9. Special masterfile names are configured ----------------------------
 
 

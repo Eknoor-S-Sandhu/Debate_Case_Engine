@@ -10,6 +10,12 @@ from debate_engine.schemas.document import (
     Side,
     SourceGroup,
 )
+from debate_engine.schemas.duplicate import (
+    DuplicateDetectionResult,
+    DuplicateGroup,
+    DuplicateStatistics,
+    DuplicateType,
+)
 from debate_engine.schemas.parsed import (
     DocumentFormat,
     ParsedBlock,
@@ -24,6 +30,10 @@ __all__ = [
     "ChunkLevel",
     "ChunkingMetadata",
     "DocumentType",
+    "DuplicateDetectionResult",
+    "DuplicateGroup",
+    "DuplicateStatistics",
+    "DuplicateType",
     "DocumentFormat",
     "Freshness",
     "ParsedBlock",

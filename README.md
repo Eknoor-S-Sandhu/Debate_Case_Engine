@@ -3,16 +3,15 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 4
+## Current status: Phase 1, Milestone 5
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 4 converts detected policy, value, fact, theory, kritik, and answer
-structures into argument-level and reusable submodule chunks. Original
-wording, heading context, source-block references, and conservative metadata
-remain attached. Documents without reliable structure use paragraph-aware
-fallback chunks. Nothing is persisted or embedded yet, and search and the user
+Milestone 5 groups compatible exact and strongly near-identical chunks without
+deleting or rewriting any version. Groups select one deterministic preferred
+representative for future retrieval diversity while retaining every source
+variant. Nothing is persisted or embedded yet, and search and the user
 interface arrive in later milestones.
 
 ## Requirements
@@ -86,6 +85,20 @@ python scripts/inspect_chunks.py "/path/to/debate/file.docx" \
 
 This command parses and structures the file before printing chunk summaries.
 It does not write chunks, load an embedding model, or initialize a database.
+
+## Inspect duplicate groups
+
+Inspect one file or compare an archive folder entirely in memory:
+
+```bash
+python scripts/inspect_duplicates.py "/path/to/debate/archive"
+python scripts/inspect_duplicates.py "/path/to/debate/archive" \
+  --only-duplicates --show-text --limit 20
+```
+
+Exact matching uses a stable normalized-content hash. Near matching uses
+conservative RapidFuzz scoring with structural and candidate-blocking
+safeguards. Duplicate groups preserve all original chunks.
 
 ## Configuration
 
