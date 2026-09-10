@@ -54,6 +54,23 @@ def test_absolute_directory_override_is_honoured(tmp_path: Path) -> None:
     assert settings.raw_data_dir == external.resolve()
 
 
+def test_database_path_is_configurable_and_anchored(tmp_path: Path) -> None:
+    settings = Settings(
+        project_root=tmp_path,
+        storage={"database_path": "custom/index.db"},
+    )
+
+    assert settings.storage.database_path == (tmp_path / "custom/index.db").resolve()
+    assert settings.storage.enable_full_text_search
+
+
+def test_absolute_database_path_override_is_honoured(tmp_path: Path) -> None:
+    external = tmp_path / "outside.db"
+    settings = Settings(storage={"database_path": external})
+
+    assert settings.storage.database_path == external.resolve()
+
+
 def test_environment_variables_override_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEBATE_ENGINE_DEFAULT_TOP_K", "5")
     monkeypatch.setenv("DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL", "1.5")

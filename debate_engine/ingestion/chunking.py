@@ -63,7 +63,9 @@ _INHERITABLE_CONTEXT_TYPES = frozenset(
 
 
 @dataclass(frozen=True, slots=True)
-class _ResolvedMetadata:
+class ResolvedDocumentMetadata:
+    """Fully inferred document provenance shared by chunking and persistence."""
+
     document_id: str
     source_group: SourceGroup
     document_type: DocumentType
@@ -186,12 +188,12 @@ def _resolve_metadata(
     document: StructuredDocument,
     metadata: ChunkingMetadata | DebateDocument | None,
     settings: Settings,
-) -> _ResolvedMetadata:
+) -> ResolvedDocumentMetadata:
     special_name = _special_masterfile_name(document, settings)
     special = special_name is not None
 
     if isinstance(metadata, DebateDocument):
-        return _ResolvedMetadata(
+        return ResolvedDocumentMetadata(
             document_id=metadata.document_id,
             source_group=metadata.source_group,
             document_type=metadata.document_type,
@@ -217,7 +219,7 @@ def _resolve_metadata(
         if supplied.priority_weight is not None
         else _priority_weight(source_group, special=special, settings=settings)
     )
-    return _ResolvedMetadata(
+    return ResolvedDocumentMetadata(
         document_id=supplied.document_id or document.document_id,
         source_group=source_group,
         document_type=document_type,
@@ -229,6 +231,21 @@ def _resolve_metadata(
         is_special_masterfile=special,
         special_masterfile_name=special_name,
     )
+
+
+def resolve_document_metadata(
+    structured_document: StructuredDocument,
+    metadata: ChunkingMetadata | DebateDocument | None = None,
+    *,
+    settings: Settings | None = None,
+) -> ResolvedDocumentMetadata:
+    """Return the document-level metadata that chunking would infer.
+
+    Persistence needs the same inferred provenance that chunks carry, so this
+    exposes the resolution step without generating any chunks.
+    """
+    configured = settings or get_settings()
+    return _resolve_metadata(structured_document, metadata, configured)
 
 
 def _section_heading(section: StructuredSection) -> str | None:
@@ -357,7 +374,7 @@ def _contextual_source_indexes(
 
 def _base_chunk_fields(
     document: StructuredDocument,
-    resolved: _ResolvedMetadata,
+    resolved: ResolvedDocumentMetadata,
 ) -> dict[str, object]:
     return {
         "document_id": resolved.document_id,
@@ -380,7 +397,7 @@ def _argument_chunk(
     *,
     document: StructuredDocument,
     path: list[StructuredSection],
-    resolved: _ResolvedMetadata,
+    resolved: ResolvedDocumentMetadata,
 ) -> DebateChunk:
     text = _assemble_contextual_text(section, path)
     parent = path[-2] if len(path) > 1 else None
@@ -448,7 +465,7 @@ def _submodule_chunk(
     document: StructuredDocument,
     path: list[StructuredSection],
     parent: StructuredSection | None,
-    resolved: _ResolvedMetadata,
+    resolved: ResolvedDocumentMetadata,
 ) -> DebateChunk:
     text = _assemble_contextual_text(section, path)
     return DebateChunk(
@@ -573,7 +590,7 @@ def _pack_fallback_units(
 def _fallback_chunks(
     document: StructuredDocument,
     *,
-    resolved: _ResolvedMetadata,
+    resolved: ResolvedDocumentMetadata,
     settings: ChunkingSettings,
 ) -> list[DebateChunk]:
     groups = _pack_fallback_units(_fallback_units(document, settings), settings)

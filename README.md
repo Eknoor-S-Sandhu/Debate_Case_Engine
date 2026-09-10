@@ -3,16 +3,16 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 5
+## Current status: Phase 1, Milestone 6
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 5 groups compatible exact and strongly near-identical chunks without
-deleting or rewriting any version. Groups select one deterministic preferred
-representative for future retrieval diversity while retaining every source
-variant. Nothing is persisted or embedded yet, and search and the user
-interface arrive in later milestones.
+Milestone 6 persists documents, chunks, and non-destructive duplicate groups
+to a local SQLite database. Writes are idempotent, foreign keys enforce
+integrity, structured list metadata is stored as JSON, and an FTS5 index
+supports lightweight lexical inspection. Embeddings, semantic search, and the
+user interface remain later milestones.
 
 ## Requirements
 
@@ -100,6 +100,46 @@ Exact matching uses a stable normalized-content hash. Near matching uses
 conservative RapidFuzz scoring with structural and candidate-blocking
 safeguards. Duplicate groups preserve all original chunks.
 
+## Build the SQLite knowledge base
+
+Build or incrementally upsert an archive into the configured database
+(`data/indexes/debate.db` by default):
+
+```bash
+python scripts/build_database.py "/path/to/debate/archive"
+python scripts/build_database.py "/path/to/debate/archive" --rebuild
+python scripts/build_database.py "/path/to/debate/archive" \
+  --database "/another/local/path/debate.db"
+```
+
+The build runs discovery, parsing, structure detection, chunking, duplicate
+detection, and persistence. Each source file is committed independently so a
+bad document does not roll back successful files. Failures, scanned PDFs that
+need OCR, and legacy `.doc` failures are reported without invented placeholder
+content. `--rebuild` drops and recreates the knowledge-base schema; the default
+mode upserts deterministic IDs and preserves documents from other prior runs.
+
+Inspect the result without modifying it:
+
+```bash
+python scripts/inspect_db.py stats
+python scripts/inspect_db.py documents
+python scripts/inspect_db.py document "case filename"
+python scripts/inspect_db.py chunk "chunk-id"
+python scripts/inspect_db.py duplicate-group "duplicate-group-id"
+python scripts/inspect_db.py search "public transit"
+```
+
+All commands accept `--database` to inspect a non-default database. FTS5 search
+is lexical only and does not replace the semantic retrieval layer planned for
+later milestones.
+
+Delete behavior is deliberate: deleting a document cascades to its chunks;
+chunk deletion cascades to duplicate memberships; deleting a representative
+chunk removes its duplicate group; deleting a group clears the denormalized
+group marker on its chunks; and deleting an argument clears, rather than
+deletes, its surviving submodules' parent reference.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -110,6 +150,8 @@ file. Nested values use a double underscore:
 DEBATE_ENGINE_DEFAULT_TOP_K=30
 DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL=1.2
 DEBATE_ENGINE_CHUNKING__FALLBACK_MAX_TOKENS=450
+DEBATE_ENGINE_STORAGE__DATABASE_PATH=data/indexes/custom.db
+DEBATE_ENGINE_STORAGE__ENABLE_FULL_TEXT_SEARCH=true
 ```
 
 ## Where debate files go

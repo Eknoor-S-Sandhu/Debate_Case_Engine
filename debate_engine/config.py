@@ -150,6 +150,18 @@ class ChunkingSettings(BaseModel):
         return self
 
 
+class StorageSettings(BaseModel):
+    """SQLite persistence options for the local knowledge base.
+
+    ``database_path`` is relative to the project root unless an absolute path
+    is supplied, so no machine-specific path is ever baked into the code.
+    """
+
+    database_path: Path = Path("data/indexes/debate.db")
+    enable_full_text_search: bool = True
+    busy_timeout_seconds: float = Field(default=30.0, ge=0.0)
+
+
 class DuplicateDetectionSettings(BaseModel):
     """Conservative fuzzy-matching safeguards and candidate-blocking limits."""
 
@@ -200,6 +212,9 @@ class Settings(BaseSettings):
         default_factory=DuplicateDetectionSettings
     )
 
+    # --- Persistence -------------------------------------------------------
+    storage: StorageSettings = Field(default_factory=StorageSettings)
+
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
 
@@ -222,6 +237,11 @@ class Settings(BaseSettings):
             value: Path = getattr(self, name)
             resolved = value if value.is_absolute() else root / value
             object.__setattr__(self, name, resolved.resolve())
+
+        database_path = self.storage.database_path
+        if not database_path.is_absolute():
+            database_path = root / database_path
+        object.__setattr__(self.storage, "database_path", database_path.resolve())
         return self
 
 
