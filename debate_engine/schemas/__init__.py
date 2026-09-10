@@ -16,6 +16,7 @@ from debate_engine.schemas.parsed import (
     ParsedDocument,
     ParseStatus,
 )
+from debate_engine.schemas.structure import StructuredDocument, StructuredSection
 
 __all__ = [
     "DebateChunk",
@@ -29,4 +30,6 @@ __all__ = [
     "RoundType",
     "Side",
     "SourceGroup",
+    "StructuredDocument",
+    "StructuredSection",
 ]

@@ -3,15 +3,16 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 2
+## Current status: Phase 1, Milestone 3
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 2 discovers and inspects local `.docx`, `.doc`, `.pdf`, `.md`, and
-`.txt` files. It extracts text and lightweight document structure, reports
-malformed files, and flags image-only PDFs for OCR. It does not yet detect
-debate argument structure, persist documents, search, or provide a user
+Milestone 3 recognizes debate-specific document structure after extracting
+`.docx`, `.doc`, `.pdf`, `.md`, and `.txt` files. It normalizes common policy,
+value, fact, theory, kritik, and answer headings while preserving original
+headings, body text, formatting signals, and uncertain material. It does not
+yet create retrieval chunks, persist documents, search, or provide a user
 interface. Later phases add those capabilities and the agent layer.
 
 ## Requirements
@@ -59,6 +60,20 @@ legacy `.doc` conversion failures, and likely scanned PDFs are reported.
 Legacy `.doc` parsing uses macOS `/usr/bin/textutil` when available. No OCR is
 performed.
 
+## Inspect detected debate structure
+
+Print the normalized section tree for one supported document:
+
+```bash
+python scripts/inspect_structure.py "/path/to/debate/file.docx"
+python scripts/inspect_structure.py "/path/to/debate/file.docx" \
+  --show-confidence --show-text --max-depth 3
+```
+
+Detection is deterministic and rule-based; it does not call an LLM. Weakly
+structured text remains available as unstructured/orphan content rather than
+being forced into a debate format.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -80,7 +95,8 @@ DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL=1.2
 | `data/models/` | Cached embedding model weights |
 
 You may place an archive under `data/raw/` or inspect it in place elsewhere.
-Milestone 2 parses in memory only and does not write to `data/parsed/`.
+Parsing and structure detection run in memory only and do not write to
+`data/parsed/`.
 
 > **Your debate archive is never committed.** Everything under `data/` is
 > gitignored apart from the `.gitkeep` placeholders that keep the folders

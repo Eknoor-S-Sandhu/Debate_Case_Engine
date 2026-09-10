@@ -90,6 +90,14 @@ def test_scoring_placeholders_are_present() -> None:
     assert 0.0 <= settings.duplicate_similarity_threshold <= 1.0
 
 
+def test_structure_detection_thresholds_are_configured() -> None:
+    detection = Settings().structure_detection
+
+    assert detection.style_heading_confidence == pytest.approx(0.98)
+    assert detection.minimum_section_confidence == pytest.approx(0.55)
+    assert detection.max_heading_words == 12
+
+
 # --- 9. Special masterfile names are configured ----------------------------
 
 

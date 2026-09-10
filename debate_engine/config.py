@@ -123,6 +123,20 @@ class SourceGroupPatterns(BaseModel):
     )
 
 
+class StructureDetectionSettings(BaseModel):
+    """Thresholds for deterministic heading and structure detection."""
+
+    style_heading_confidence: float = Field(default=0.98, ge=0.0, le=1.0)
+    keyword_heading_confidence: float = Field(default=0.88, ge=0.0, le=1.0)
+    numbered_heading_confidence: float = Field(default=0.80, ge=0.0, le=1.0)
+    formatted_heading_confidence: float = Field(default=0.68, ge=0.0, le=1.0)
+    uppercase_heading_confidence: float = Field(default=0.62, ge=0.0, le=1.0)
+    colon_heading_confidence: float = Field(default=0.58, ge=0.0, le=1.0)
+    minimum_section_confidence: float = Field(default=0.55, ge=0.0, le=1.0)
+    max_heading_words: int = Field(default=12, ge=1)
+    max_heading_characters: int = Field(default=120, ge=1)
+
+
 class Settings(BaseSettings):
     """Runtime settings for the knowledge and retrieval foundation."""
 
@@ -154,6 +168,9 @@ class Settings(BaseSettings):
     motion_similarity_boosts: MotionSimilarityBoosts = Field(default_factory=MotionSimilarityBoosts)
     freshness_modifiers: FreshnessModifiers = Field(default_factory=FreshnessModifiers)
     source_group_patterns: SourceGroupPatterns = Field(default_factory=SourceGroupPatterns)
+    structure_detection: StructureDetectionSettings = Field(
+        default_factory=StructureDetectionSettings
+    )
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
