@@ -162,6 +162,17 @@ class StorageSettings(BaseModel):
     busy_timeout_seconds: float = Field(default=30.0, ge=0.0)
 
 
+class VectorIndexSettings(BaseModel):
+    """Derived Chroma index and embedding behavior."""
+
+    chroma_path: Path = Path("data/indexes/chroma")
+    collection_name: str = "debate_chunks"
+    embedding_batch_size: int = Field(default=32, ge=1)
+    normalize_embeddings: bool = True
+    embedding_text_schema_version: str = "debate-chunk-v1"
+    query_instruction: str = "Represent this sentence for searching relevant passages: "
+
+
 class DuplicateDetectionSettings(BaseModel):
     """Conservative fuzzy-matching safeguards and candidate-blocking limits."""
 
@@ -214,6 +225,7 @@ class Settings(BaseSettings):
 
     # --- Persistence -------------------------------------------------------
     storage: StorageSettings = Field(default_factory=StorageSettings)
+    vector_index: VectorIndexSettings = Field(default_factory=VectorIndexSettings)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)
@@ -242,6 +254,11 @@ class Settings(BaseSettings):
         if not database_path.is_absolute():
             database_path = root / database_path
         object.__setattr__(self.storage, "database_path", database_path.resolve())
+
+        chroma_path = self.vector_index.chroma_path
+        if not chroma_path.is_absolute():
+            chroma_path = root / chroma_path
+        object.__setattr__(self.vector_index, "chroma_path", chroma_path.resolve())
         return self
 
 

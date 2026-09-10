@@ -71,6 +71,22 @@ def test_absolute_database_path_override_is_honoured(tmp_path: Path) -> None:
     assert settings.storage.database_path == external.resolve()
 
 
+def test_vector_index_configuration_is_anchored_and_resource_safe(tmp_path: Path) -> None:
+    settings = Settings(
+        project_root=tmp_path,
+        vector_index={
+            "chroma_path": "custom/chroma",
+            "embedding_batch_size": 16,
+        },
+    )
+
+    assert settings.vector_index.chroma_path == (tmp_path / "custom/chroma").resolve()
+    assert settings.vector_index.collection_name == "debate_chunks"
+    assert settings.vector_index.embedding_batch_size == 16
+    assert settings.vector_index.normalize_embeddings
+    assert settings.vector_index.embedding_text_schema_version == "debate-chunk-v1"
+
+
 def test_environment_variables_override_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEBATE_ENGINE_DEFAULT_TOP_K", "5")
     monkeypatch.setenv("DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL", "1.5")

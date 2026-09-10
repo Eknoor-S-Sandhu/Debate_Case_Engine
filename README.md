@@ -3,16 +3,17 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 6
+## Current status: Phase 1, Milestone 7
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 6 persists documents, chunks, and non-destructive duplicate groups
-to a local SQLite database. Writes are idempotent, foreign keys enforce
-integrity, structured list metadata is stored as JSON, and an FTS5 index
-supports lightweight lexical inspection. Embeddings, semantic search, and the
-user interface remain later milestones.
+Milestone 7 derives normalized BGE embeddings from persisted chunks and keeps
+a local Chroma collection synchronized with SQLite. Duplicate groups index
+only their preferred representative by default, and unchanged vectors are not
+re-embedded. Raw cosine search is available for inspection only; hierarchical
+retrieval policy, reranking, agents, and the user interface remain later
+milestones.
 
 ## Requirements
 
@@ -140,6 +141,48 @@ chunk removes its duplicate group; deleting a group clears the denormalized
 group marker on its chunks; and deleting an argument clears, rather than
 deletes, its surviving submodules' parent reference.
 
+## Build and inspect the vector index
+
+Build the SQLite database first, then synchronize eligible chunks into Chroma:
+
+```bash
+python scripts/build_database.py "/path/to/debate/archive"
+python scripts/build_vector_index.py
+```
+
+The first vector build lazily downloads and caches
+`BAAI/bge-small-en-v1.5`, then embeds chunks in bounded batches. Subsequent
+runs compare deterministic embedding-input fingerprints: unchanged vectors
+are skipped, changed/new chunks are embedded, and vectors absent from SQLite
+are deleted. SQLite remains authoritative and Chroma can be rebuilt entirely
+from it:
+
+```bash
+python scripts/build_vector_index.py --rebuild
+python scripts/build_vector_index.py --batch-size 16
+python scripts/build_vector_index.py --include-duplicates
+python scripts/inspect_vector_index.py
+```
+
+By default, singleton chunks and each duplicate group's preferred
+representative are indexed. `--include-duplicates` intentionally indexes every
+preserved variant instead. Collection metadata records the model, dimension,
+normalization setting, and embedding-text schema; incompatible configuration
+requires `--rebuild`.
+
+Run a basic semantic-search inspection:
+
+```bash
+python scripts/search_vectors.py "economic growth regulation" --top-k 10
+python scripts/search_vectors.py "investor confidence" \
+  --source-group personal --section-type internal_link \
+  --show-text --show-metadata
+```
+
+This is direct cosine similarity with optional equality filters. It does not
+apply source weights, freshness boosts, masterfile preference, duplicate
+diversification, or any other Milestone 8 retrieval policy.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -152,6 +195,8 @@ DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL=1.2
 DEBATE_ENGINE_CHUNKING__FALLBACK_MAX_TOKENS=450
 DEBATE_ENGINE_STORAGE__DATABASE_PATH=data/indexes/custom.db
 DEBATE_ENGINE_STORAGE__ENABLE_FULL_TEXT_SEARCH=true
+DEBATE_ENGINE_VECTOR_INDEX__CHROMA_PATH=data/indexes/chroma
+DEBATE_ENGINE_VECTOR_INDEX__EMBEDDING_BATCH_SIZE=32
 ```
 
 ## Where debate files go
@@ -170,7 +215,8 @@ Parsing and structure detection run in memory only and do not write to
 > **Your debate archive is never committed.** Everything under `data/` is
 > gitignored apart from the `.gitkeep` placeholders that keep the folders
 > tracked, and `.docx`, `.doc`, and `.pdf` files are ignored repository-wide as
-> a second line of defence. Verify at any time with `git status --short`.
+> a second line of defence. This includes the SQLite database, Chroma index,
+> and downloaded model cache. Verify at any time with `git status --short`.
 
 ## Planning
 
