@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from debate_engine.schemas.chunk import DebateChunk, Freshness
+from debate_engine.schemas.chunk import ChunkingMetadata, ChunkLevel, DebateChunk, Freshness
 from debate_engine.schemas.document import (
     DebateDocument,
     DocumentType,
@@ -21,6 +21,8 @@ from debate_engine.schemas.structure import StructuredDocument, StructuredSectio
 __all__ = [
     "DebateChunk",
     "DebateDocument",
+    "ChunkLevel",
+    "ChunkingMetadata",
     "DocumentType",
     "DocumentFormat",
     "Freshness",

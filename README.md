@@ -3,17 +3,17 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 3
+## Current status: Phase 1, Milestone 4
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 3 recognizes debate-specific document structure after extracting
-`.docx`, `.doc`, `.pdf`, `.md`, and `.txt` files. It normalizes common policy,
-value, fact, theory, kritik, and answer headings while preserving original
-headings, body text, formatting signals, and uncertain material. It does not
-yet create retrieval chunks, persist documents, search, or provide a user
-interface. Later phases add those capabilities and the agent layer.
+Milestone 4 converts detected policy, value, fact, theory, kritik, and answer
+structures into argument-level and reusable submodule chunks. Original
+wording, heading context, source-block references, and conservative metadata
+remain attached. Documents without reliable structure use paragraph-aware
+fallback chunks. Nothing is persisted or embedded yet, and search and the user
+interface arrive in later milestones.
 
 ## Requirements
 
@@ -74,6 +74,19 @@ Detection is deterministic and rule-based; it does not call an LLM. Weakly
 structured text remains available as unstructured/orphan content rather than
 being forced into a debate format.
 
+## Inspect generated chunks
+
+Preview in-memory chunks for one document:
+
+```bash
+python scripts/inspect_chunks.py "/path/to/debate/file.docx"
+python scripts/inspect_chunks.py "/path/to/debate/file.docx" \
+  --level submodule --show-text --show-metadata --limit 10
+```
+
+This command parses and structures the file before printing chunk summaries.
+It does not write chunks, load an embedding model, or initialize a database.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -83,6 +96,7 @@ file. Nested values use a double underscore:
 ```bash
 DEBATE_ENGINE_DEFAULT_TOP_K=30
 DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL=1.2
+DEBATE_ENGINE_CHUNKING__FALLBACK_MAX_TOKENS=450
 ```
 
 ## Where debate files go

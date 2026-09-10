@@ -3,6 +3,10 @@
 Debate structure detection and chunking begin in later milestones.
 """
 
+from debate_engine.ingestion.chunking import (
+    approximate_token_count,
+    chunk_structured_document,
+)
 from debate_engine.ingestion.discovery import (
     DiscoveredFile,
     DiscoveryResult,
@@ -19,6 +23,8 @@ __all__ = [
     "DiscoveryResult",
     "SkippedEntry",
     "SkipReason",
+    "approximate_token_count",
+    "chunk_structured_document",
     "discover_files",
     "detect_structure",
     "infer_source_group",

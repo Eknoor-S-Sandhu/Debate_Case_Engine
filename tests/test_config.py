@@ -98,6 +98,14 @@ def test_structure_detection_thresholds_are_configured() -> None:
     assert detection.max_heading_words == 12
 
 
+def test_fallback_chunking_limits_are_configured() -> None:
+    chunking = Settings().chunking
+
+    assert chunking.fallback_max_tokens == 450
+    assert chunking.fallback_overlap_tokens == 45
+    assert chunking.fallback_overlap_tokens < chunking.fallback_max_tokens
+
+
 # --- 9. Special masterfile names are configured ----------------------------
 
 

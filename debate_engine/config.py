@@ -137,6 +137,19 @@ class StructureDetectionSettings(BaseModel):
     max_heading_characters: int = Field(default=120, ge=1)
 
 
+class ChunkingSettings(BaseModel):
+    """Limits used only when a document has no reliable semantic structure."""
+
+    fallback_max_tokens: int = Field(default=450, ge=20)
+    fallback_overlap_tokens: int = Field(default=45, ge=0)
+
+    @model_validator(mode="after")
+    def _validate_overlap(self) -> ChunkingSettings:
+        if self.fallback_overlap_tokens >= self.fallback_max_tokens:
+            raise ValueError("fallback_overlap_tokens must be smaller than fallback_max_tokens")
+        return self
+
+
 class Settings(BaseSettings):
     """Runtime settings for the knowledge and retrieval foundation."""
 
@@ -171,6 +184,7 @@ class Settings(BaseSettings):
     structure_detection: StructureDetectionSettings = Field(
         default_factory=StructureDetectionSettings
     )
+    chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)

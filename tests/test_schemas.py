@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from debate_engine.schemas import (
+    ChunkLevel,
     DebateChunk,
     DebateDocument,
     DocumentType,
@@ -70,21 +71,36 @@ def test_debate_chunk_validates_with_full_metadata() -> None:
         source_group=SourceGroup.PERSONAL,
         document_type=DocumentType.MASTERFILE,
         section_type="IMPX",
+        chunk_level=ChunkLevel.SUBMODULE,
         original_heading="Impact - Climate Tipping Points",
+        argument_heading="Advantage 1: Climate",
+        parent_heading="Advantage 1: Climate",
+        heading_path=["Advantage 1: Climate", "Impact - Climate Tipping Points"],
         parent_argument_id="doc-0001::arg-03",
         side=Side.GOV,
         round_type=RoundType.POLICY,
+        year=2025,
         token_count=142,
         freshness=Freshness.CURRENT,
         duplicate_group="dup-17",
         priority_weight=1.15,
+        source_block_indexes=[10, 11],
+        structure_confidence=0.98,
+        is_special_masterfile=True,
+        special_masterfile_name="Case File Sandhu",
     )
 
     assert chunk.chunk_id == "doc-0001::arg-03"
     assert chunk.parent_argument_id == "doc-0001::arg-03"
+    assert chunk.chunk_level is ChunkLevel.SUBMODULE
+    assert chunk.heading_path[-1] == "Impact - Climate Tipping Points"
+    assert chunk.year == 2025
     assert chunk.token_count == 142
     assert chunk.freshness is Freshness.CURRENT
     assert chunk.duplicate_group == "dup-17"
+    assert chunk.source_block_indexes == [10, 11]
+    assert chunk.structure_confidence == pytest.approx(0.98)
+    assert chunk.is_special_masterfile
 
 
 # --- 3. Valid enum values work ---------------------------------------------
@@ -185,6 +201,11 @@ def test_missing_required_field_is_rejected() -> None:
 def test_negative_token_count_is_rejected() -> None:
     with pytest.raises(ValidationError):
         make_chunk(token_count=-1)
+
+
+def test_empty_chunk_text_is_rejected() -> None:
+    with pytest.raises(ValidationError):
+        make_chunk(text="   ")
 
 
 # --- 10. section_type accepts flexible strings -----------------------------

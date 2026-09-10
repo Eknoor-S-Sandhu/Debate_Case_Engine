@@ -78,6 +78,51 @@ def _write_text_pdf(path: Path, text: str) -> None:
     path.write_bytes(content)
 
 
+def generate_milestone_4_fixtures() -> None:
+    """Generate only the additional semantic and fallback chunk fixtures."""
+
+    def long_semantic(document: DocumentObject) -> None:
+        document.add_heading("Advantage 1: Durable Access", level=1)
+        document.add_heading("Impact:", level=2)
+        document.add_paragraph(
+            " ".join(
+                f"Sentence {index} preserves this synthetic semantic argument intact."
+                for index in range(160)
+            )
+        )
+
+    def fallback_long(document: DocumentObject) -> None:
+        labels = ("alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta")
+        for label in labels:
+            document.add_paragraph(
+                f"The {label} paragraph contains synthetic ordinary prose for fallback "
+                "boundary and overlap testing."
+            )
+
+    def partial_structure(document: DocumentObject) -> None:
+        document.add_paragraph("Synthetic prefatory note remains orphaned.")
+        document.add_heading("Contention 1: Access", level=1)
+        document.add_paragraph("Transport access expands available opportunities.")
+        comparison = document.add_paragraph()
+        comparison.add_run("Local Comparison").bold = True
+        document.add_paragraph("Structural access outweighs temporary inconvenience.")
+
+    def broad_masterfile(document: DocumentObject) -> None:
+        document.add_heading("Internal Links", level=1)
+        document.add_heading("Economy (Regulation Bad)", level=2)
+        document.add_paragraph("Regulatory uncertainty can delay private investment.")
+        document.add_heading("Public Health", level=2)
+        document.add_paragraph("Preventive access reduces avoidable emergency demand.")
+        document.add_heading("Impacts", level=1)
+        document.add_heading("Democratic Backsliding", level=2)
+        document.add_paragraph("Institutional erosion weakens durable accountability.")
+
+    _save_structure_document("long_semantic.docx", long_semantic)
+    _save_structure_document("fallback_long.docx", fallback_long)
+    _save_structure_document("partial_structure.docx", partial_structure)
+    _save_structure_document("masterfiles/Case File Sandhu.docx", broad_masterfile)
+
+
 def generate() -> None:
     if FIXTURE_ROOT.exists():
         shutil.rmtree(FIXTURE_ROOT)
@@ -294,6 +339,7 @@ def generate() -> None:
     _save_structure_document("weak_headings.docx", weak_structure)
     _save_structure_document("nested_numbering.docx", nested_numbering)
     _save_structure_document("ordinary_prose.docx", ordinary_prose)
+    generate_milestone_4_fixtures()
 
 
 if __name__ == "__main__":
