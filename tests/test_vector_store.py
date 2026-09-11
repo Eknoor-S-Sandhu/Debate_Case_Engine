@@ -372,6 +372,7 @@ def test_metadata_filters_are_isolated_safe_and_applied(vector_database) -> None
 
     assert [hit.chunk_id for hit in hits] == ["other"]
     assert build_where_filter({"source_group": "personal"}) == {"source_group": {"$eq": "personal"}}
+    assert build_where_filter({"special_masterfile": True}) == {"special_masterfile": {"$eq": True}}
     with pytest.raises(ValueError, match="not a supported"):
         build_where_filter({"priority_weight": "9"})  # type: ignore[dict-item]
 

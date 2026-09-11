@@ -37,6 +37,7 @@ _FILTER_FIELDS = frozenset(
         "chunk_level",
         "side",
         "round_type",
+        "special_masterfile",
     }
 )
 
@@ -146,7 +147,7 @@ def vector_metadata(
 
 
 def build_where_filter(
-    filters: Mapping[str, str | StrEnum | None] | None,
+    filters: Mapping[str, str | bool | StrEnum | None] | None,
 ) -> dict[str, object] | None:
     """Build a safe Chroma equality filter from whitelisted metadata fields."""
     if not filters:
@@ -473,7 +474,7 @@ class VectorStore:
         *,
         database: Path | str | None = None,
         top_k: int = 10,
-        filters: Mapping[str, str | StrEnum | None] | None = None,
+        filters: Mapping[str, str | bool | StrEnum | None] | None = None,
         hydrate: bool = True,
     ) -> list[SemanticSearchHit]:
         """Run raw cosine vector search without any Milestone 8 reranking."""

@@ -22,6 +22,16 @@ from debate_engine.schemas.parsed import (
     ParsedDocument,
     ParseStatus,
 )
+from debate_engine.schemas.retrieval import (
+    GeneratedQuery,
+    JudgeCategory,
+    QueryFamily,
+    RetrievalCandidate,
+    RetrievalRequest,
+    RetrievalResult,
+    RetrievalStatistics,
+    SupportLevel,
+)
 from debate_engine.schemas.structure import StructuredDocument, StructuredSection
 
 __all__ = [
@@ -36,12 +46,20 @@ __all__ = [
     "DuplicateType",
     "DocumentFormat",
     "Freshness",
+    "GeneratedQuery",
+    "JudgeCategory",
     "ParsedBlock",
     "ParsedDocument",
     "ParseStatus",
     "RoundType",
+    "QueryFamily",
+    "RetrievalCandidate",
+    "RetrievalRequest",
+    "RetrievalResult",
+    "RetrievalStatistics",
     "Side",
     "SourceGroup",
     "StructuredDocument",
     "StructuredSection",
+    "SupportLevel",
 ]

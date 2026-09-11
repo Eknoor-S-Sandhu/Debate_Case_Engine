@@ -173,6 +173,34 @@ class VectorIndexSettings(BaseModel):
     query_instruction: str = "Represent this sentence for searching relevant passages: "
 
 
+class RetrievalSettings(BaseModel):
+    """Bounded candidate pools and transparent deterministic score weights."""
+
+    semantic_candidate_pool: int = Field(default=72, ge=1)
+    semantic_candidates_per_query: int = Field(default=18, ge=1)
+    lexical_candidate_pool: int = Field(default=36, ge=1)
+    lexical_candidates_per_query: int = Field(default=10, ge=1)
+    default_argument_results: int = Field(default=5, ge=0)
+    default_submodule_results: int = Field(default=18, ge=0)
+    max_generated_queries: int = Field(default=7, ge=1)
+    max_related_children: int = Field(default=3, ge=0)
+    minimum_base_relevance: float = Field(default=0.18, ge=0.0, le=1.0)
+    semantic_weight: float = Field(default=0.60, ge=0.0)
+    lexical_weight: float = Field(default=0.14, ge=0.0)
+    concept_weight: float = Field(default=0.16, ge=0.0)
+    heading_weight: float = Field(default=0.10, ge=0.0)
+    source_influence: float = Field(default=0.40, ge=0.0)
+    masterfile_bonus: float = Field(default=0.06, ge=0.0)
+    theory_masterfile_bonus: float = Field(default=0.08, ge=0.0)
+    motion_similarity_bonus: float = Field(default=0.08, ge=0.0)
+    section_fit_bonus: float = Field(default=0.08, ge=0.0)
+    freshness_influence: float = Field(default=0.04, ge=0.0)
+    same_parent_penalty: float = Field(default=0.10, ge=0.0)
+    same_document_penalty: float = Field(default=0.04, ge=0.0)
+    repeated_function_penalty: float = Field(default=0.05, ge=0.0)
+    text_redundancy_penalty: float = Field(default=0.12, ge=0.0)
+
+
 class DuplicateDetectionSettings(BaseModel):
     """Conservative fuzzy-matching safeguards and candidate-blocking limits."""
 
@@ -226,6 +254,7 @@ class Settings(BaseSettings):
     # --- Persistence -------------------------------------------------------
     storage: StorageSettings = Field(default_factory=StorageSettings)
     vector_index: VectorIndexSettings = Field(default_factory=VectorIndexSettings)
+    retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)

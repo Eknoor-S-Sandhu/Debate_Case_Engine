@@ -260,6 +260,37 @@ def get_chunks_for_document(
     return list_chunks(connection, document_id=document_id)
 
 
+def get_chunks_by_ids(
+    connection: sqlite3.Connection,
+    chunk_ids: Iterable[str],
+) -> list[DebateChunk]:
+    """Hydrate a bounded candidate-ID set in one SQLite query."""
+    identifiers = list(dict.fromkeys(chunk_ids))
+    if not identifiers:
+        return []
+    placeholders = ", ".join("?" for _ in identifiers)
+    rows = connection.execute(
+        f"{_SELECT} WHERE chunk_id IN ({placeholders}) ORDER BY chunk_id",
+        identifiers,
+    ).fetchall()
+    return [_row_to_chunk(row) for row in rows]
+
+
+def get_child_chunks(
+    connection: sqlite3.Connection,
+    parent_argument_id: str,
+    *,
+    limit: int | None = None,
+) -> list[DebateChunk]:
+    """Return direct submodules of one argument without scanning all chunks."""
+    tail, parameters = limit_clause(limit)
+    rows = connection.execute(
+        f"{_SELECT} WHERE parent_argument_id = ? ORDER BY chunk_id{tail}",
+        (parent_argument_id, *parameters),
+    ).fetchall()
+    return [_row_to_chunk(row) for row in rows]
+
+
 def delete_chunk(connection: sqlite3.Connection, chunk_id: str) -> bool:
     """Delete one chunk and its duplicate memberships. Returns whether it existed."""
     with transaction(connection):

@@ -3,17 +3,17 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 7
+## Current status: Phase 1, Milestone 8
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
 
-Milestone 7 derives normalized BGE embeddings from persisted chunks and keeps
-a local Chroma collection synchronized with SQLite. Duplicate groups index
-only their preferred representative by default, and unchanged vectors are not
-re-embedded. Raw cosine search is available for inspection only; hierarchical
-retrieval policy, reranking, agents, and the user interface remain later
-milestones.
+Milestone 8 combines bounded semantic and lexical candidate retrieval with
+deterministic debate-aware scoring. It returns related full arguments and
+reusable submodules, applies relevance-gated source/masterfile preferences,
+enforces theory/K eligibility, suppresses duplicates, and diversifies repeated
+argumentative functions. Scores and hierarchy expansion are inspectable. It
+still does not generate cases, run agents, or provide a user interface.
 
 ## Requirements
 
@@ -183,6 +183,44 @@ This is direct cosine similarity with optional equality filters. It does not
 apply source weights, freshness boosts, masterfile preference, duplicate
 diversification, or any other Milestone 8 retrieval policy.
 
+## Run hierarchical retrieval
+
+After building both SQLite and Chroma, retrieve debate material for a round:
+
+```bash
+python scripts/retrieve.py \
+  "Mexico should lift its ban on planting genetically modified corn" \
+  --side aff --round-type policy --judge tech \
+  --show-scores --show-text
+```
+
+Useful debugging controls include `--source-group personal`,
+`--include-theory`, `--include-kritiks`, `--arguments 5`, `--modules 20`,
+repeatable `--concept`/`--query` values, and `--database`.
+
+Unlike raw vector search, hierarchical retrieval:
+
+- generates a bounded set of deterministic motion, concept, mechanism, impact,
+  and side-aware queries;
+- merges Chroma cosine matches with SQLite FTS5 matches before ranking;
+- keeps semantic relevance dominant while using Personal, Past Case, and
+  Other source hierarchy as a modest close-decision influence;
+- gives relevant `Case File Sandhu` mechanisms and `Theory File - Sandhu`
+  shells targeted priority without forcing irrelevant masterfile content;
+- excludes non-personal theory and Ks; personal theory requires a relevant
+  theory request or explicit inclusion, while personal Ks require explicit
+  inclusion or a relevant query for a TECH judge;
+- returns only preferred duplicate representatives and reduces repeated
+  functions, same-parent modules, and highly similar text;
+- expands selected submodules to their parent argument and exposes selected
+  arguments' direct children for inspection.
+
+Every result includes semantic, lexical, concept, heading, source,
+masterfile, motion-similarity, section-fit, compatibility, freshness, and
+redundancy components. These are deterministic retrieval-support signals, not
+LLM confidence estimates. No case writing or argument adaptation occurs in
+Milestone 8.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with
@@ -197,6 +235,8 @@ DEBATE_ENGINE_STORAGE__DATABASE_PATH=data/indexes/custom.db
 DEBATE_ENGINE_STORAGE__ENABLE_FULL_TEXT_SEARCH=true
 DEBATE_ENGINE_VECTOR_INDEX__CHROMA_PATH=data/indexes/chroma
 DEBATE_ENGINE_VECTOR_INDEX__EMBEDDING_BATCH_SIZE=32
+DEBATE_ENGINE_RETRIEVAL__SEMANTIC_CANDIDATE_POOL=72
+DEBATE_ENGINE_RETRIEVAL__LEXICAL_CANDIDATE_POOL=36
 ```
 
 ## Where debate files go

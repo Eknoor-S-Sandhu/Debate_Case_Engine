@@ -87,6 +87,17 @@ def test_vector_index_configuration_is_anchored_and_resource_safe(tmp_path: Path
     assert settings.vector_index.embedding_text_schema_version == "debate-chunk-v1"
 
 
+def test_hierarchical_retrieval_pools_and_weights_are_configured() -> None:
+    retrieval = Settings().retrieval
+
+    assert retrieval.semantic_candidate_pool == 72
+    assert retrieval.lexical_candidate_pool == 36
+    assert retrieval.default_argument_results == 5
+    assert retrieval.default_submodule_results == 18
+    assert retrieval.semantic_weight > retrieval.lexical_weight
+    assert retrieval.masterfile_bonus < retrieval.semantic_weight
+
+
 def test_environment_variables_override_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEBATE_ENGINE_DEFAULT_TOP_K", "5")
     monkeypatch.setenv("DEBATE_ENGINE_SOURCE_WEIGHTS__PERSONAL", "1.5")
