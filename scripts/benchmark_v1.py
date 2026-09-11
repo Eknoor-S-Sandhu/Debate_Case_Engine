@@ -81,7 +81,7 @@ def run_round(director, scenario, artifact_dir=None):
 @app.command()
 def benchmark(
     output: Annotated[Path, typer.Option(help="New output directory; contains private artifacts.")],
-    provider: ProviderName = ProviderName.GEMINI,
+    provider: ProviderName = ProviderName.CODEX_CLI,
     model: str | None = None,
     limit: Annotated[int, typer.Option(min=1, max=12)] = 12,
     timeout_seconds: Annotated[float, typer.Option(min=1, max=120)] = 60,
@@ -94,6 +94,8 @@ def benchmark(
     settings = Settings()
     settings.strategy.provider = provider
     settings.strategy.timeout_seconds = timeout_seconds
+    if provider == ProviderName.CODEX_CLI:
+        settings.codex_cli.timeout_seconds = timeout_seconds
     if model is not None:
         getattr(settings, provider).model = model
     if not inference_ready(settings):
@@ -121,6 +123,9 @@ def benchmark(
         if any(
             c["error_code"]
             in {
+                "cli_login",
+                "cli_missing",
+                "cli_incompatible",
                 "authentication",
                 "permission",
                 "rate_limit_or_quota",

@@ -3,7 +3,7 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 16 — V1 validation and reliability
+## Current status: Milestone 17 — Codex CLI inference
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -21,7 +21,9 @@ from the packet and judge guidance. Milestone 13 critiques, repairs, and ranks
 those architectures using the 100-point rubric; you make the final choice.
 Milestone 14 expands your chosen strategy into a formatted case, checks the
 speech budget, and performs a final improvement pass. Milestone 15 supports
-OpenAI, Anthropic, and Gemini across those inference stages.
+OpenAI, Anthropic, and Gemini across those inference stages. Milestone 16 adds
+reliability diagnostics and a repeatable benchmark. Milestone 17 adds Codex CLI
+as the primary inference provider, with Gemini available as a manual backup.
 
 ## Requirements
 
@@ -322,13 +324,12 @@ Round preparation page, or run:
 .venv/bin/python scripts/generate_strategies.py knowledge_packet.json --preferences "Emphasize clear causal mechanisms" --json
 ```
 
-Set `DEBATE_ENGINE_STRATEGY__ALLOW_REMOTE=true`,
-`DEBATE_ENGINE_STRATEGY__API_KEY`, and `DEBATE_ENGINE_STRATEGY__MODEL` in your
-local `.env` or environment. Supply an OpenAI model available to your account
-that supports Responses structured output. Generation uses provider credits
-and sends selected archive excerpts, judge notes, research excerpts, and strategy
-preferences to OpenAI. It requires internet-permitted prep, a concrete side,
-and a policy, value, or fact round type. Missing configuration makes no request.
+Configure a provider using the setup below. Codex CLI is the primary option:
+run `codex login` with ChatGPT and enable `DEBATE_ENGINE_CODEX_CLI__ALLOW_REMOTE`.
+Generation uses the selected provider's allowance and sends selected archive
+excerpts, judge notes, research excerpts and strategy preferences to that provider.
+It requires internet-permitted prep, a concrete side, and a policy, value, or fact
+round type. Missing configuration makes no generation request.
 
 Results include two or three developed contentions per architecture, source IDs,
 exact source quotes when used, assumptions, verification needs, judge adaptation,
@@ -369,14 +370,19 @@ evaluation containing your explicit choice. It uses the same cloud settings and
 makes two or three model requests. Offline prep remains blocked. See
 [Milestone 14 formats, timing and limitations](docs/MILESTONE_14.md).
 
-## Choose an inference provider (Milestone 15)
+## Choose an inference provider (Milestones 15 and 17)
 
-Strategy generation, evaluation, and case writing support **OpenAI, Anthropic,
-and Gemini**. Choose **Inference provider** in Round preparation or pass
-`--provider openai`, `--provider anthropic`, or `--provider gemini` to a generation
+Strategy generation, evaluation, and case writing support **Codex CLI (primary),
+Gemini (backup), OpenAI, and Anthropic**. Choose **Inference provider** in Round
+preparation or pass `--provider codex_cli`, `--provider openai`,
+`--provider anthropic`, or `--provider gemini` to a generation
 command. Existing outputs retain their original provider/model labels.
 
-Configure the selected provider's `API_KEY`, `MODEL`, and `ALLOW_REMOTE` values
+For Codex, run `codex login` with ChatGPT and set
+`DEBATE_ENGINE_CODEX_CLI__ALLOW_REMOTE=true`; no API key is needed.
+See [Codex CLI setup and behavior](docs/MILESTONE_17.md).
+
+For API providers, configure `API_KEY`, `MODEL`, and `ALLOW_REMOTE` values
 under `DEBATE_ENGINE_OPENAI__...`, `DEBATE_ENGINE_ANTHROPIC__...`, or
 `DEBATE_ENGINE_GEMINI__...`. The default provider is set with
 `DEBATE_ENGINE_STRATEGY__PROVIDER`. Existing OpenAI-only configuration still works.

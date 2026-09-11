@@ -2,11 +2,12 @@
 
 import copy
 import json
+import shutil
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from debate_engine.config import InferenceProviderSettings, Settings
+from debate_engine.config import CodexCLISettings, InferenceProviderSettings, Settings
 
 
 class StrategyProviderError(RuntimeError):
@@ -21,9 +22,11 @@ class NoRedirects(HTTPRedirectHandler):
         return None
 
 
-def provider_settings(settings: Settings, name: str | None = None) -> InferenceProviderSettings:
+def provider_settings(
+    settings: Settings, name: str | None = None
+) -> InferenceProviderSettings | CodexCLISettings:
     name = name or settings.strategy.provider
-    if name not in {"openai", "anthropic", "gemini"}:
+    if name not in {"openai", "anthropic", "gemini", "codex_cli"}:
         raise ValueError("Unsupported inference provider.")
     config = getattr(settings, name).model_copy(deep=True)
     if name == "openai":
@@ -35,12 +38,16 @@ def provider_settings(settings: Settings, name: str | None = None) -> InferenceP
     return config
 
 
-def remote_allowed(settings: Settings, config: InferenceProviderSettings) -> bool:
+def remote_allowed(
+    settings: Settings, config: InferenceProviderSettings | CodexCLISettings
+) -> bool:
     return settings.strategy.allow_remote if config.allow_remote is None else config.allow_remote
 
 
 def inference_ready(settings: Settings) -> bool:
     config = provider_settings(settings)
+    if settings.strategy.provider == "codex_cli":
+        return remote_allowed(settings, config) and shutil.which(config.executable) is not None
     return bool(
         remote_allowed(settings, config)
         and config.api_key is not None
@@ -286,6 +293,10 @@ class GeminiStrategyProvider(BaseProvider):
 
 
 def create_provider(settings: Settings):
+    if settings.strategy.provider == "codex_cli":
+        from debate_engine.agents.codex_cli_provider import CodexCLIProvider
+
+        return CodexCLIProvider(settings)
     providers = {
         "openai": OpenAIStrategyProvider,
         "anthropic": AnthropicStrategyProvider,

@@ -81,7 +81,7 @@ class StrategyResult(StrictModel):
     packet_fingerprint: str
     inference_calls: list[InferenceCall] = Field(default_factory=list)
     model: str | None = None
-    provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
+    provider: Literal["openai", "anthropic", "gemini", "codex_cli", "injected"] | None = None
     prompt_version: str = "milestone-12-v1"
     # Only the sources actually supplied to the model; supports later citation inspection.
     supplied_archive_ids: list[str] = Field(default_factory=list)

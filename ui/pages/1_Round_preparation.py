@@ -84,17 +84,30 @@ def main() -> None:
         providers,
         index=providers.index(settings.strategy.provider),
         key="inference_provider",
+        format_func=lambda p: {"codex_cli": "Codex CLI (primary)", "gemini": "Gemini (backup)"}.get(
+            p, p.value.title()
+        ),
     )
     settings.strategy.provider = provider
     selected_config = provider_settings(settings)
+    model_label = selected_config.model or (
+        "CLI default" if provider == ProviderName.CODEX_CLI else "not configured"
+    )
     st.caption(
         f"Next generation request: {provider.value} · "
-        f"Model: {selected_config.model or 'not configured'}. "
+        f"Model: {model_label}. "
         "Selected archive excerpts and judge notes are sent to this provider."
     )
+    if provider == ProviderName.CODEX_CLI:
+        st.caption(
+            "Uses your Codex ChatGPT login and allowance. "
+            "Gemini remains available as a manual backup."
+        )
     if not inference_ready(settings):
         st.info(
-            "Configure this provider's API key, model and remote access in your local environment."
+            "Install Codex CLI, sign in with ChatGPT, and enable remote access."
+            if provider == ProviderName.CODEX_CLI
+            else "Configure this provider's API key, model and remote access."
         )
     with st.form("round"):
         motion = st.text_area("Motion", key="motion")

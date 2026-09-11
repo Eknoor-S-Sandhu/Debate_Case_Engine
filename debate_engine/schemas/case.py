@@ -72,7 +72,7 @@ class CaseResult(StrictModel):
     selected_strategy_score: int | None = None
     inference_calls: list[InferenceCall] = Field(default_factory=list)
     model: str | None = None
-    provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
+    provider: Literal["openai", "anthropic", "gemini", "codex_cli", "injected"] | None = None
     prompt_version: str = "milestone-14-v1"
     speech_minutes: int = 0
     budget: SpeechBudget = Field(default_factory=SpeechBudget)

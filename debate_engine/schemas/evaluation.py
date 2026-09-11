@@ -124,7 +124,7 @@ class EvaluationResult(StrictModel):
     strategy_fingerprint: str
     inference_calls: list[InferenceCall] = Field(default_factory=list)
     model: str | None = None
-    provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
+    provider: Literal["openai", "anthropic", "gemini", "codex_cli", "injected"] | None = None
     prompt_version: str = "milestone-13-v1"
     critiques: list[Critique] = Field(default_factory=list)
     repairs: list[Repair] = Field(default_factory=list)

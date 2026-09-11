@@ -183,7 +183,11 @@ class StrategyAgent:
             return result
         config = self.settings.strategy
         if self.provider is None and not inference_ready(self.settings):
-            result.warnings = ["Configure the selected provider API_KEY, MODEL, and remote access."]
+            result.warnings = [
+                "Configure the selected provider and enable remote access. "
+                "Codex CLI requires an installed CLI and ChatGPT login; "
+                "API providers require a key and model."
+            ]
             return result
         request = packet.plan.retrieval_request
         if (

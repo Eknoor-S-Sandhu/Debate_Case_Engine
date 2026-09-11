@@ -228,7 +228,8 @@ class CaseWriter:
         if self.provider is None and not inference_ready(self.settings):
             result.status = "not_configured"
             result.warnings.append(
-                "Configure the selected provider API_KEY, MODEL, and remote access."
+                "Configure the selected provider and enable remote access. "
+                "Codex CLI needs ChatGPT login; API providers need a key and model."
             )
             return result
         provider = self.provider or create_provider(self.settings)

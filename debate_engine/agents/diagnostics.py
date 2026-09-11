@@ -5,6 +5,9 @@ from time import perf_counter
 from debate_engine.schemas.diagnostics import InferenceCall
 
 ERROR_MESSAGES = {
+    "cli_missing": "Codex CLI is missing. Install it or configure its executable path.",
+    "cli_login": "Codex CLI needs a ChatGPT login. Run codex login in your terminal.",
+    "cli_incompatible": "Codex CLI is incompatible. Update it to support the required exec flags.",
     "authentication": "Provider authentication failed. Check the selected provider's API key.",
     "permission": "Provider denied access. Check account permissions and model access.",
     "model_unavailable": "Model unavailable. Check model access for your account.",

@@ -226,6 +226,7 @@ class ResearchSettings(BaseModel):
 
 
 class ProviderName(StrEnum):
+    CODEX_CLI = "codex_cli"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
@@ -240,11 +241,21 @@ class InferenceProviderSettings(BaseModel):
     model: str | None = Field(default=None, min_length=1)
 
 
+class CodexCLISettings(BaseModel):
+    """Local CLI transport to ChatGPT-authenticated remote inference."""
+
+    model_config = {"extra": "forbid", "validate_assignment": True, "str_strip_whitespace": True}
+    allow_remote: bool | None = None
+    executable: str = Field(default="codex", min_length=1)
+    model: str | None = Field(default=None, min_length=1)
+    timeout_seconds: float = Field(default=180.0, gt=0.0, le=600.0)
+
+
 class StrategySettings(BaseModel):
     """Cloud generation is explicit because it sends selected private excerpts."""
 
     model_config = {"extra": "forbid", "validate_assignment": True, "str_strip_whitespace": True}
-    provider: ProviderName = ProviderName.OPENAI
+    provider: ProviderName = ProviderName.CODEX_CLI
     allow_remote: bool = False
     api_key: SecretStr | None = None
     model: str | None = Field(default=None, min_length=1)
@@ -254,6 +265,17 @@ class StrategySettings(BaseModel):
     max_archive_chunks: int = Field(default=24, ge=1, le=40)
     max_research_sources: int = Field(default=8, ge=0, le=20)
     excerpt_characters: int = Field(default=3000, ge=100, le=6000)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_openai_provider(cls, value):
+        if (
+            isinstance(value, dict)
+            and "provider" not in value
+            and (value.get("api_key") or value.get("model"))
+        ):
+            return {**value, "provider": ProviderName.OPENAI}
+        return value
 
 
 class Settings(BaseSettings):
@@ -301,6 +323,7 @@ class Settings(BaseSettings):
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     research: ResearchSettings = Field(default_factory=ResearchSettings)
     strategy: StrategySettings = Field(default_factory=StrategySettings)
+    codex_cli: CodexCLISettings = Field(default_factory=CodexCLISettings)
     openai: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
     anthropic: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
     gemini: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
