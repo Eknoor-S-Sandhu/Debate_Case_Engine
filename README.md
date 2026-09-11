@@ -3,7 +3,7 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Milestone 10 — round preparation
+## Current status: Milestone 11 — Research and Judge adaptation
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -15,7 +15,8 @@ enforces theory/K eligibility, suppresses duplicates, and diversifies repeated
 argumentative functions. Scores and hierarchy expansion are inspectable.
 Milestone 9 adds a local Streamlit retrieval tester. Milestone 10 adds the
 Round Director and Knowledge Agent, producing a structured archive packet
-for a round. Research, judge adaptation, strategy, and case writing come later.
+for a round. Milestone 11 adds judge adaptation and permission-gated live
+research. Strategy and case writing come later.
 
 ## Requirements
 
@@ -253,12 +254,12 @@ or rebuild indexes. Existing retrieval may initialize Chroma storage and load
 or download the configured embedding model on the first search. No LLM or case
 generation is used. UI tests use Streamlit AppTest with an isolated retriever.
 
-## Prepare a round (Milestone 10)
+## Prepare a round (Milestones 10–11)
 
 The Streamlit sidebar now includes **Round preparation**. Enter your motion,
-side, round type, judge category, and prep rules. Preview the retrieval plan
+side, round type, judge category or paradigm notes, and prep rules. Preview the retrieval plan
 without opening indexes, or prepare an organized Knowledge Packet. The packet
-shows original text, source paths, ranking scores, and verification notes, and
+shows original text, source paths, ranking scores, judge guidance, research, and verification notes, and
 can be downloaded as JSON for later stages.
 
 The same workflow is available from the repository root:
@@ -276,15 +277,35 @@ retrieval with warnings; absent SQLite produces an error without creating it.
 
 Round preparation never downloads models, including when internet research is
 permitted. Build/cache resources before prep. Internet permission is recorded
-for future research; no research runs in Milestone 10. Judge notes are preserved
-without automatic classification. The director uses conservative motion-prefix
+for live research in Milestone 11. Clear judge labels in notes can be classified;
+ambiguous notes remain unclassified and explicit judge settings win. The director uses conservative motion-prefix
 inference only when round type is omitted; explicit values take precedence.
 
 The packet retains selected argument excerpts, not whole reconstructed cases.
 Freshness notes flag material to verify, and coverage gaps describe this set of
 retrieved modules only. No facts or source text are rewritten. The existing
 retrieval tester and build commands retain their behavior.
-See [the Milestone 10 scope](docs/MILESTONE_10.md) for contracts and limitations.
+See [the Milestone 10 scope](docs/MILESTONE_10.md) for the original packet design.
+
+### Configure live research
+
+Set `DEBATE_ENGINE_RESEARCH__API_KEY` to your Tavily key in your local `.env` or
+environment. Keep credentials out of round inputs and source control. Search
+uses your provider credits only when internet is permitted and preparation is
+submitted; previews and offline rounds never call the provider. Only motion,
+explicit concepts, and round year form search queries. Archive text and judge
+notes are not sent.
+
+Without a key, online preparation returns the archive packet with a clear
+`missing_credentials` research status. Live results preserve URLs, provider
+publication dates when available, retrieval timestamps, and excerpts. They are
+**unverified search excerpts**, not verified facts or full-study reviews. Failed
+queries produce a partial/failed status without discarding archive material.
+
+Judge guidance is rule-based, preserves original notes, and is applied before
+retrieval. Specific no-theory/no-K preferences affect retrieval unless an explicit
+round option overrides them. This milestone does not generate strategies.
+See [Milestone 11 setup and behavior](docs/MILESTONE_11.md) for details.
 
 ## Configuration
 

@@ -99,7 +99,7 @@ def test_explicit_context_and_top_k_are_preserved(settings):
     assert plan.retrieval_request.judge_notes == context.judge_notes
     assert plan.retrieval_request.include_theory is False
     assert plan.retrieval_request.include_kritiks is True
-    assert plan.research_status == "permitted_but_not_implemented"
+    assert plan.research_status == "missing_credentials"
     assert context.model_dump() == snapshot
 
 

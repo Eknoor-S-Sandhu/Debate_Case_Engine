@@ -1,5 +1,8 @@
 # Milestone 10 — Round Director and Knowledge Agent
 
+Historical milestone scope. For current judge and research behavior, see
+[Milestone 11](MILESTONE_11.md).
+
 Scope follows the original Build Debate Agent roadmap: round input → Round
 Director → archive retrieval → structured Knowledge Packet. Milestone 11 adds
 Research and Judge adaptation; strategy and writing come later.

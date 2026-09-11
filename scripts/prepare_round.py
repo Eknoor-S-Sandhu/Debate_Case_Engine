@@ -39,6 +39,11 @@ def prepare(
     plan = output if plan_only else output.plan
     typer.echo(f"Motion: {plan.round_input.motion}")
     typer.echo(f"Research: {plan.research_status}")
+    if plan.judge_profile:
+        profile = plan.judge_profile
+        typer.echo(f"Judge: {profile.category or 'unspecified'} ({profile.classification_source})")
+        for guidance in profile.guidance:
+            typer.echo(f"Judge guidance: {guidance}")
     typer.echo("Retrieval queries:")
     for query in plan.generated_queries:
         typer.echo(f"  [{query.family.value}] {query.text}")
@@ -60,6 +65,18 @@ def prepare(
             typer.echo(chunk.text)
             for note in item.verification_notes:
                 typer.echo(f"  Verify: {note}")
+    if output.research is not None:
+        typer.echo(f"\nRESEARCH — {output.research.status}")
+        for source in output.research.sources:
+            typer.echo(f"{source.title} | {source.url}")
+            typer.echo(
+                f"Published: {source.published_date or 'unknown'} | unverified search excerpt"
+            )
+            typer.echo(source.excerpt)
+            for note in source.notes:
+                typer.echo(f"Verify: {note}")
+        for warning in output.research.warnings:
+            typer.echo(f"Research warning: {warning}")
     for warning in output.warnings:
         typer.echo(f"Warning: {warning}")
 

@@ -5,6 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from debate_engine.schemas.adaptation import JudgeProfile, ResearchPacket
 from debate_engine.schemas.retrieval import (
     GeneratedQuery,
     RetrievalCandidate,
@@ -36,6 +37,7 @@ class RoundPlan(BaseModel):
     generated_queries: list[GeneratedQuery]
     research_permitted: bool
     research_status: str
+    judge_profile: JudgeProfile | None = None
     notes: list[str] = Field(default_factory=list)
 
 
@@ -75,4 +77,5 @@ class KnowledgePacket(BaseModel):
     groups: dict[KnowledgeCategory, list[str]] = Field(default_factory=dict)
     coverage_gaps: list[KnowledgeCategory] = Field(default_factory=list)
     statistics: RetrievalStatistics
+    research: ResearchPacket | None = None
     warnings: list[str] = Field(default_factory=list)

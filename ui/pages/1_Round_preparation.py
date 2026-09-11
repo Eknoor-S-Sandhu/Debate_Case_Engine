@@ -1,4 +1,4 @@
-"""Milestone 10 round planning and Knowledge Packet inspection."""
+"""Round preparation with judge adaptation and permission-gated research."""
 
 import streamlit as st
 
@@ -10,7 +10,7 @@ from debate_engine.schemas.rounds import PrepRules, RoundInput
 def main() -> None:
     st.set_page_config(page_title="Round preparation", page_icon="📚", layout="wide")
     st.title("Round preparation")
-    st.caption("Organize archive material for your round. No case writing or live research yet.")
+    st.caption("Prepare archive material, judge guidance, and research for your round.")
     with st.form("round"):
         motion = st.text_area("Motion", key="motion")
         left, right = st.columns(2)
@@ -22,9 +22,10 @@ def main() -> None:
             minutes = st.number_input("Prep minutes", min_value=1, max_value=180, value=15)
             internet = st.checkbox("Round rules permit internet research", key="internet")
             st.caption(
-                "Research is deferred. This workflow uses local indexes and cached models only."
+                "Live research requires a configured Tavily key. "
+                "Only motion and concepts are sent to search."
             )
-        judge_notes = st.text_area("Judge notes (preserved for later adaptation)")
+        judge_notes = st.text_area("Judge paradigm or notes")
         concepts = st.text_area("Extra concepts (one per line)")
         theory = st.selectbox("Include theory", [None, True, False])
         kritiks = st.selectbox("Include kritiks", [None, True, False])
@@ -61,6 +62,20 @@ def main() -> None:
     st.caption("Shown results belong to the last submission. Submit again to apply edits.")
     with st.expander("Round plan", expanded=packet is None):
         st.json(plan.model_dump(mode="json"))
+    if plan.judge_profile:
+        profile = plan.judge_profile
+        st.subheader("Judge adaptation")
+        st.caption(
+            f"Category: {profile.category or 'unspecified'} · {profile.classification_source}"
+        )
+        for guidance in profile.guidance:
+            st.text(guidance)
+        for warning in profile.warnings:
+            st.warning(warning)
+        if profile.preferences:
+            with st.expander("Specific preferences"):
+                for preference in profile.preferences:
+                    st.text(preference)
     if packet is None:
         return
     st.subheader(f"Knowledge packet · {len(packet.items)} unique chunks")
@@ -86,6 +101,22 @@ def main() -> None:
                     st.warning(note)
                 with st.expander("Source metadata and scores"):
                     st.json(item.model_dump(mode="json"))
+    if packet.research is not None:
+        research = packet.research
+        st.subheader("Live research")
+        st.caption(f"Status: {research.status} · {len(research.sources)} sources")
+        for warning in research.warnings:
+            st.warning(warning)
+        for source in research.sources:
+            with st.container(border=True):
+                st.text(source.title)
+                st.link_button("Open source", source.url)
+                st.caption(
+                    f"Published: {source.published_date or 'unknown'} · Unverified search excerpt"
+                )
+                st.text(source.excerpt)
+                for note in source.notes:
+                    st.caption(note)
     st.download_button(
         "Download Knowledge Packet",
         packet.model_dump_json(indent=2),

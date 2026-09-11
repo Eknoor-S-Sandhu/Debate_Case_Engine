@@ -38,7 +38,7 @@ check_python_version()
 from functools import lru_cache  # noqa: E402
 from pathlib import Path  # noqa: E402
 
-from pydantic import BaseModel, Field, model_validator  # noqa: E402
+from pydantic import BaseModel, Field, SecretStr, model_validator  # noqa: E402
 from pydantic_settings import BaseSettings, SettingsConfigDict  # noqa: E402
 
 # The package lives at <project_root>/debate_engine/config.py
@@ -212,6 +212,18 @@ class DuplicateDetectionSettings(BaseModel):
     length_bucket_ratio: float = Field(default=1.25, gt=1.0)
 
 
+class ResearchSettings(BaseModel):
+    """Bounded Tavily search; credentials never belong in round exports."""
+
+    model_config = {"extra": "forbid", "validate_assignment": True}
+
+    api_key: SecretStr | None = None
+    max_queries: int = Field(default=3, ge=1, le=3)
+    results_per_query: int = Field(default=4, ge=1, le=10)
+    timeout_seconds: float = Field(default=10.0, gt=0.0, le=20.0)
+    max_excerpt_characters: int = Field(default=2000, ge=100, le=5000)
+
+
 class Settings(BaseSettings):
     """Runtime settings for the knowledge and retrieval foundation."""
 
@@ -255,6 +267,7 @@ class Settings(BaseSettings):
     storage: StorageSettings = Field(default_factory=StorageSettings)
     vector_index: VectorIndexSettings = Field(default_factory=VectorIndexSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
+    research: ResearchSettings = Field(default_factory=ResearchSettings)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)

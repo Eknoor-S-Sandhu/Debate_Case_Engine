@@ -1,17 +1,27 @@
 """Plan one round and orchestrate its knowledge handoff only."""
 
+from __future__ import annotations
+
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from debate_engine.agents.judge import JudgeAgent
 from debate_engine.config import Settings, get_settings
 from debate_engine.retrieval.queries import generate_retrieval_queries
 from debate_engine.schemas import RetrievalRequest, RoundType
 from debate_engine.schemas.rounds import KnowledgePacket, RoundInput, RoundPlan
 
+if TYPE_CHECKING:
+    from debate_engine.agents.research import ResearchProvider
+
 
 class RoundDirector:
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(
+        self, settings: Settings | None = None, *, research_provider: ResearchProvider | None = None
+    ) -> None:
         self.settings = settings or get_settings()
+        self.research_provider = research_provider
 
     def plan(self, round_input: RoundInput) -> RoundPlan:
         # Copy input so planning never mutates caller-owned context.
@@ -29,10 +39,19 @@ class RoundDirector:
                 notes.append("Value inferred from the preference/regret motion prefix.")
             else:
                 notes.append("Round type is unspecified; no policy/value/fact assumption applied.")
-        if request.judge_category is None:
-            notes.append("Judge category is unspecified; paradigm classification is deferred.")
-        if request.judge_notes:
-            notes.append("Judge notes preserved verbatim; no paradigm analysis performed.")
+        judge = JudgeAgent().analyze(request.judge_notes, category=request.judge_category)
+        request.judge_category = judge.category
+        for field, exclude in [
+            ("include_theory", judge.exclude_theory),
+            ("include_kritiks", judge.exclude_kritiks),
+        ]:
+            if exclude and getattr(request, field) is None:
+                setattr(request, field, False)
+            elif exclude and getattr(request, field) is True:
+                judge.warnings.append(
+                    f"Explicit {field}=true overrides the judge's exclusion preference."
+                )
+        notes.extend(judge.warnings)
         if request.side is None:
             notes.append("No side supplied; retrieval remains side-neutral.")
         if not (
@@ -53,10 +72,17 @@ class RoundDirector:
             generated_queries=generate_retrieval_queries(request, settings=self.settings),
             research_permitted=context.prep_rules.internet_allowed,
             research_status=(
-                "permitted_but_not_implemented"
-                if context.prep_rules.internet_allowed
-                else "disabled_by_prep_rules"
+                "disabled_by_prep_rules"
+                if not context.prep_rules.internet_allowed
+                else "ready"
+                if self.research_provider is not None
+                or (
+                    self.settings.research.api_key is not None
+                    and self.settings.research.api_key.get_secret_value().strip()
+                )
+                else "missing_credentials"
             ),
+            judge_profile=judge,
             notes=notes,
         )
 
@@ -64,5 +90,11 @@ class RoundDirector:
         self, round_input: RoundInput, *, database: Path | str | None = None
     ) -> KnowledgePacket:
         from debate_engine.agents.knowledge import KnowledgeAgent
+        from debate_engine.agents.research import ResearchAgent
 
-        return KnowledgeAgent(self.settings, database=database).retrieve(self.plan(round_input))
+        packet = KnowledgeAgent(self.settings, database=database).retrieve(self.plan(round_input))
+        packet.research = ResearchAgent(self.settings, provider=self.research_provider).run(
+            packet.plan.round_input, knowledge=packet
+        )
+        packet.plan.research_status = packet.research.status
+        return packet
