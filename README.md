@@ -3,7 +3,7 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 15 — Multi-provider inference
+## Current status: Milestone 16 — V1 validation and reliability
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -382,6 +382,21 @@ under `DEBATE_ENGINE_OPENAI__...`, `DEBATE_ENGINE_ANTHROPIC__...`, or
 `DEBATE_ENGINE_STRATEGY__PROVIDER`. Existing OpenAI-only configuration still works.
 There is no automatic fallback to another provider, and offline prep remains blocked.
 See [.env.example](.env.example) and [Milestone 15 setup and compatibility](docs/MILESTONE_15.md).
+
+## Validate reliability (Milestone 16)
+
+Inference stages now report safe error categories, latency and available token
+usage. The UI shows actionable provider failures and expandable request diagnostics.
+A 12-scenario corpus supports repeatable end-to-end testing:
+
+```bash
+.venv/bin/python scripts/benchmark_v1.py --output data/parsed/m16-new-run
+```
+
+This is a dry run by default. Adding `--live --provider gemini` runs real requests
+and saves private results locally. The recorded 12-round live run produced no final
+cases because of service errors, a timeout and rejected output; V1 live acceptance
+remains pending. See [Milestone 16 scope and live-test evidence](docs/MILESTONE_16.md).
 
 ## Configuration
 

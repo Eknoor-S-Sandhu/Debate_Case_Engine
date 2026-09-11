@@ -3,6 +3,7 @@
 import hashlib
 import json
 
+from debate_engine.agents.diagnostics import invalid_output, run_inference
 from debate_engine.agents.evaluation_prompt import RED_TEAM, REPAIR, SCORE
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
 from debate_engine.agents.strategy_provider import (
@@ -26,6 +27,8 @@ from debate_engine.schemas.strategy import ArchitectureSet, StrategyResult
 def fingerprint(value) -> str:
     # Provider metadata was absent in Milestones 12–14. Preserve their fingerprint bytes.
     exclude = {"provider"} if hasattr(value, "provider") and value.provider is None else set()
+    if hasattr(value, "inference_calls") and not value.inference_calls:
+        exclude.add("inference_calls")
     return hashlib.sha256(value.model_dump_json(exclude=exclude).encode()).hexdigest()
 
 
@@ -122,7 +125,9 @@ class EvaluationAgent:
                 result.warnings.append(f"{stage} input exceeds the configured size limit.")
                 return result
             try:
-                raw = provider.generate(instructions, encoded, schema.model_json_schema())
+                raw = run_inference(
+                    provider, result, stage, instructions, encoded, schema.model_json_schema()
+                )
             except Exception:
                 result.status = "failed"
                 result.warnings.append(f"{stage} provider failed or refused; evaluation stopped.")
@@ -168,6 +173,7 @@ class EvaluationAgent:
                         for row in rows
                     ]
             except ValueError:
+                invalid_output(result)
                 result.status = "invalid_output"
                 result.warnings.append(f"{stage} output failed validation; evaluation stopped.")
                 return result

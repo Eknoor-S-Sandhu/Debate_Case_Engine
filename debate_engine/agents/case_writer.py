@@ -4,6 +4,7 @@ import json
 import re
 
 from debate_engine.agents.case_prompt import DRAFT_CASE, IMPROVE_CASE, TRIM_CASE
+from debate_engine.agents.diagnostics import invalid_output, run_inference
 from debate_engine.agents.evaluation import fingerprint
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
 from debate_engine.agents.strategy_provider import (
@@ -252,7 +253,9 @@ class CaseWriter:
                 result.warnings.append(f"{stage} input exceeds configured size limit.")
                 return result
             try:
-                raw = provider.generate(prompt, encoded, CaseDocument.model_json_schema())
+                raw = run_inference(
+                    provider, result, stage, prompt, encoded, CaseDocument.model_json_schema()
+                )
             except Exception:
                 result.status = "failed"
                 result.warnings.append(
@@ -263,6 +266,7 @@ class CaseWriter:
                 case = CaseDocument.model_validate(raw)
                 validate_case(case, context, selected.architecture)
             except ValueError:
+                invalid_output(result)
                 result.status = "invalid_output"
                 result.warnings.append(f"{stage} case failed structure or source validation.")
                 return result

@@ -4,6 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from debate_engine.schemas.diagnostics import InferenceCall
+
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=3000)]
 
 
@@ -77,6 +79,7 @@ class StrategyResult(StrictModel):
     architectures: list[Architecture] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     packet_fingerprint: str
+    inference_calls: list[InferenceCall] = Field(default_factory=list)
     model: str | None = None
     provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
     prompt_version: str = "milestone-12-v1"

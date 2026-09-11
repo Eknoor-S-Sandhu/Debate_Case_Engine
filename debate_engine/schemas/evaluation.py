@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import Field, model_validator
 
+from debate_engine.schemas.diagnostics import InferenceCall
 from debate_engine.schemas.strategy import Architecture, StrictModel, Text
 
 ArchitectureId = Annotated[int, Field(strict=True, ge=1, le=3)]
@@ -121,6 +122,7 @@ class EvaluationResult(StrictModel):
     stage: Literal["input", "red_team", "repair", "scoring", "completed"] = "input"
     packet_fingerprint: str
     strategy_fingerprint: str
+    inference_calls: list[InferenceCall] = Field(default_factory=list)
     model: str | None = None
     provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
     prompt_version: str = "milestone-13-v1"

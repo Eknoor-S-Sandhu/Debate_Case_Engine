@@ -96,7 +96,7 @@ def test_provider_request_and_credential_isolation(monkeypatch, name):
         assert body["system"] == "instructions"
     else:
         assert request.full_url.endswith("/gemini-test-model:generateContent")
-        assert body["generationConfig"]["responseFormat"]["text"]["schema"] == original
+        assert body["generationConfig"]["responseJsonSchema"] == anthropic_schema(original)
         assert body["systemInstruction"]["parts"][0]["text"] == "instructions"
 
 

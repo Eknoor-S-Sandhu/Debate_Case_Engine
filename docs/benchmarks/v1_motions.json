@@ -1,0 +1,14 @@
+[
+ {"id":"transit-gov","motion":"THW make public transport free","side":"gov","round_type":"policy","judge_category":"flow"},
+ {"id":"transit-opp","motion":"THW make public transport free","side":"opp","round_type":"policy","judge_category":"fully_lay"},
+ {"id":"carbon-aff","motion":"THW implement a carbon tax","side":"aff","round_type":"policy","judge_category":"tech"},
+ {"id":"carbon-neg","motion":"THW implement a carbon tax","side":"neg","round_type":"policy","judge_category":"flay"},
+ {"id":"housing-gov","motion":"THW abolish single-family zoning","side":"gov","round_type":"policy","judge_category":"flow"},
+ {"id":"housing-opp","motion":"THW abolish single-family zoning","side":"opp","round_type":"policy","judge_category":"fully_lay"},
+ {"id":"privacy-aff","motion":"THBT privacy is more important than national security","side":"aff","round_type":"value","judge_category":"flay"},
+ {"id":"privacy-neg","motion":"THBT privacy is more important than national security","side":"neg","round_type":"value","judge_category":"tech"},
+ {"id":"justice-gov","motion":"THP restorative justice to retributive justice","side":"gov","round_type":"value","judge_category":"flow"},
+ {"id":"justice-opp","motion":"THP restorative justice to retributive justice","side":"opp","round_type":"value","judge_category":"fully_lay"},
+ {"id":"social-aff","motion":"THBT social media has done more harm than good","side":"aff","round_type":"fact","judge_category":"flay"},
+ {"id":"social-neg","motion":"THBT social media has done more harm than good","side":"neg","round_type":"fact","judge_category":"flow"}
+]

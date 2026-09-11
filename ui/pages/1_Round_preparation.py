@@ -12,6 +12,23 @@ from debate_engine.schemas.evaluation import RUBRIC
 from debate_engine.schemas.rounds import PrepRules, RoundInput
 
 
+def render_diagnostics(result):
+    if result.inference_calls:
+        with st.expander("Request diagnostics"):
+            for call in result.inference_calls:
+                input_count = call.input_tokens if call.input_tokens is not None else "unknown"
+                output_count = call.output_tokens if call.output_tokens is not None else "unknown"
+                st.text(
+                    f"{call.stage}: {call.status} · {call.elapsed_seconds:.2f}s · "
+                    f"Input tokens: {input_count} · "
+                    f"Output tokens: {output_count}"
+                )
+                if call.error_code:
+                    st.text(
+                        f"Error: {call.error_code} · HTTP: {call.http_status or 'not reported'}"
+                    )
+
+
 def render_architecture(architecture) -> None:
     st.text(architecture.framing)
     if architecture.value:
@@ -210,6 +227,7 @@ def main() -> None:
             f"Strategy status: {strategy.status} · {strategy.provider or 'legacy OpenAI'} · "
             f"{strategy.model or 'unspecified model'}. Results reflect the last generation request."
         )
+        render_diagnostics(strategy)
         for warning in strategy.warnings:
             st.warning(warning)
         for index, architecture in enumerate(strategy.architectures, start=1):
@@ -243,6 +261,7 @@ def main() -> None:
                 f"{evaluation.provider or 'legacy OpenAI'} · "
                 f"{evaluation.model or 'unspecified model'}"
             )
+            render_diagnostics(evaluation)
             for warning in evaluation.warnings:
                 st.warning(warning)
             for critique in evaluation.critiques:
@@ -317,6 +336,7 @@ def main() -> None:
                             )
                     final_case = st.session_state.get("case_output")
                     if final_case is not None:
+                        render_diagnostics(final_case)
                         for warning in final_case.warnings:
                             st.warning(warning)
                         if final_case.status == "completed":

@@ -70,7 +70,8 @@ the original Pydantic constraints are still enforced after generation. See
 [Anthropic structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs).
 
 Gemini uses the native GenerateContent endpoint, `systemInstruction`, and
-`generationConfig.responseFormat.text` JSON schema. API keys are sent in a header,
+`generationConfig.responseMimeType` / `responseJsonSchema` JSON schema
+(corrected by Milestone 16 live validation). API keys are sent in a header,
 never the URL. Only a single candidate ending with `STOP` is accepted; blocked
 requests, truncated responses and unexpected content fail. Thought text, if
 returned separately, is excluded from the JSON result. See

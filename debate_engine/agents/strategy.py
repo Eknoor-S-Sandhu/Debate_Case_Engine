@@ -8,6 +8,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
+from debate_engine.agents.diagnostics import invalid_output, run_inference
 from debate_engine.agents.strategy_prompt import STRATEGY_INSTRUCTIONS
 from debate_engine.agents.strategy_provider import (
     create_provider,
@@ -182,9 +183,7 @@ class StrategyAgent:
             return result
         config = self.settings.strategy
         if self.provider is None and not inference_ready(self.settings):
-            result.warnings = [
-                "Configure the selected provider API_KEY, MODEL, and remote access."
-            ]
+            result.warnings = ["Configure the selected provider API_KEY, MODEL, and remote access."]
             return result
         request = packet.plan.retrieval_request
         if (
@@ -213,8 +212,13 @@ class StrategyAgent:
             return result
         provider = self.provider or create_provider(self.settings)
         try:
-            raw = provider.generate(
-                STRATEGY_INSTRUCTIONS, encoded, ArchitectureSet.model_json_schema()
+            raw = run_inference(
+                provider,
+                result,
+                "strategy",
+                STRATEGY_INSTRUCTIONS,
+                encoded,
+                ArchitectureSet.model_json_schema(),
             )
         except Exception:
             result.status = "failed"
@@ -226,6 +230,7 @@ class StrategyAgent:
             output = ArchitectureSet.model_validate(raw)
             validate_architectures(output, context)
         except (ValueError, ValidationError):
+            invalid_output(result)
             result.status = "invalid_output"
             result.warnings.append(
                 "Model output failed structure, source, or diversity validation. "

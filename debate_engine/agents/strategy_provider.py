@@ -2,7 +2,7 @@
 
 import copy
 import json
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
@@ -10,7 +10,10 @@ from debate_engine.config import InferenceProviderSettings, Settings
 
 
 class StrategyProviderError(RuntimeError):
-    pass
+    def __init__(self, message, *, code="provider_error", http_status=None):
+        super().__init__(message)
+        self.code = code
+        self.http_status = http_status
 
 
 class NoRedirects(HTTPRedirectHandler):
@@ -92,6 +95,11 @@ def anthropic_schema(schema: dict) -> dict:
     return node
 
 
+def gemini_schema(schema: dict) -> dict:
+    """Avoid expensive bounded grammar states; agents enforce original bounds locally."""
+    return anthropic_schema(schema)
+
+
 def request_json(settings, url, headers, payload):
     request = Request(
         url,
@@ -113,7 +121,23 @@ def request_json(settings, url, headers, payload):
     except StrategyProviderError:
         raise
     except HTTPError as exc:
-        raise StrategyProviderError(f"Inference provider HTTP error {exc.code}.") from None
+        code = {
+            400: "invalid_request",
+            401: "authentication",
+            403: "permission",
+            404: "model_unavailable",
+            429: "rate_limit_or_quota",
+        }.get(exc.code, "server_error" if exc.code >= 500 else "provider_error")
+        raise StrategyProviderError(
+            f"Inference provider HTTP error {exc.code}.", code=code, http_status=exc.code
+        ) from None
+    except (TimeoutError, URLError) as exc:
+        timed_out = isinstance(exc, TimeoutError) or isinstance(
+            getattr(exc, "reason", None), TimeoutError
+        )
+        raise StrategyProviderError(
+            "Inference connection failed.", code="timeout" if timed_out else "connection"
+        ) from None
     except Exception:
         raise StrategyProviderError(
             "Inference request failed; check configuration and connection."
@@ -126,8 +150,10 @@ class BaseProvider:
     def __init__(self, settings: Settings):
         self.settings = settings.model_copy(deep=True)
         self.config = provider_settings(self.settings, self.name)
+        self.last_usage = {}
 
     def generate(self, instructions: str, context: str, schema: dict) -> dict:
+        self.last_usage = {}
         if (
             not remote_allowed(self.settings, self.config)
             or self.config.api_key is None
@@ -146,7 +172,9 @@ class BaseProvider:
         except StrategyProviderError:
             raise
         except Exception:
-            raise StrategyProviderError("Inference output was malformed or incomplete.") from None
+            raise StrategyProviderError(
+                "Inference output was malformed or incomplete.", code="malformed"
+            ) from None
 
 
 class OpenAIStrategyProvider(BaseProvider):
@@ -173,15 +201,18 @@ class OpenAIStrategyProvider(BaseProvider):
                 },
             },
         )
+        self.last_usage = normalized_usage(result, self.name)
         if result.get("status") != "completed":
-            raise StrategyProviderError("OpenAI response was incomplete or failed.")
+            raise StrategyProviderError(
+                "OpenAI response was incomplete or failed.", code="incomplete"
+            )
         texts = []
         for item in result.get("output", []):
             if item.get("type") != "message":
                 continue
             for content in item.get("content", []):
                 if content.get("type") == "refusal":
-                    raise StrategyProviderError("OpenAI refused generation.")
+                    raise StrategyProviderError("OpenAI refused generation.", code="refused")
                 if content.get("type") == "output_text":
                     texts.append(content["text"])
         return "".join(texts)
@@ -208,8 +239,13 @@ class AnthropicStrategyProvider(BaseProvider):
                 },
             },
         )
+        self.last_usage = normalized_usage(result, self.name)
+        if result.get("stop_reason") == "refusal":
+            raise StrategyProviderError("Anthropic refused generation.", code="refused")
         if result.get("stop_reason") != "end_turn":
-            raise StrategyProviderError("Anthropic response was refused, incomplete or failed.")
+            raise StrategyProviderError(
+                "Anthropic response was refused, incomplete or failed.", code="incomplete"
+            )
         blocks = result.get("content", [])
         if any(block.get("type") != "text" for block in blocks):
             raise StrategyProviderError("Anthropic returned unexpected content.")
@@ -230,15 +266,19 @@ class GeminiStrategyProvider(BaseProvider):
                 "contents": [{"role": "user", "parts": [{"text": context}]}],
                 "generationConfig": {
                     "maxOutputTokens": self.settings.strategy.max_output_tokens,
-                    "responseFormat": {"text": {"mimeType": "application/json", "schema": schema}},
+                    "responseMimeType": "application/json",
+                    "responseJsonSchema": gemini_schema(schema),
                 },
             },
         )
+        self.last_usage = normalized_usage(result, self.name)
         if result.get("promptFeedback", {}).get("blockReason"):
-            raise StrategyProviderError("Gemini blocked the request.")
+            raise StrategyProviderError("Gemini blocked the request.", code="refused")
         candidates = result.get("candidates", [])
         if len(candidates) != 1 or candidates[0].get("finishReason") != "STOP":
-            raise StrategyProviderError("Gemini response was blocked, incomplete or failed.")
+            raise StrategyProviderError(
+                "Gemini response was blocked, incomplete or failed.", code="incomplete"
+            )
         parts = candidates[0].get("content", {}).get("parts", [])
         if any("text" not in part for part in parts):
             raise StrategyProviderError("Gemini returned unexpected content.")
@@ -252,3 +292,20 @@ def create_provider(settings: Settings):
         "gemini": GeminiStrategyProvider,
     }
     return providers[settings.strategy.provider](settings)
+
+
+def normalized_usage(response, name):
+    usage = response.get("usageMetadata" if name == "gemini" else "usage", {})
+    if not isinstance(usage, dict):
+        return {}
+    keys = (
+        ("promptTokenCount", "candidatesTokenCount", "totalTokenCount")
+        if name == "gemini"
+        else ("input_tokens", "output_tokens", "total_tokens")
+    )
+    return {
+        target: usage.get(source)
+        for target, source in zip(
+            ("input_tokens", "output_tokens", "total_tokens"), keys, strict=True
+        )
+    }
