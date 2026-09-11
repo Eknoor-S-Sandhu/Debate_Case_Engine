@@ -33,6 +33,7 @@ def main() -> None:
         prepare = st.form_submit_button("Prepare knowledge packet", type="primary")
     if preview or prepare:
         st.session_state.pop("round_output", None)
+        st.session_state.pop("strategy_output", None)
         try:
             context = RoundInput(
                 motion=motion,
@@ -117,6 +118,47 @@ def main() -> None:
                 st.text(source.excerpt)
                 for note in source.notes:
                     st.caption(note)
+    st.subheader("Three case architectures")
+    st.caption(
+        "Generation sends selected archive excerpts, judge notes, and research to the "
+        "configured OpenAI model. It requires internet-permitted prep and explicit cloud setup."
+    )
+    preferences = st.text_area("Strategy preferences", key="strategy_preferences")
+    if st.button("Generate three architectures", key="generate_strategies"):
+        st.session_state.pop("strategy_output", None)
+        with st.spinner("Generating architectures…"):
+            st.session_state["strategy_output"] = RoundDirector().strategize(
+                packet, preferences=preferences
+            )
+    strategy = st.session_state.get("strategy_output")
+    if strategy is not None:
+        st.caption(
+            f"Strategy status: {strategy.status}. Results reflect the last generation request."
+        )
+        for warning in strategy.warnings:
+            st.warning(warning)
+        for index, architecture in enumerate(strategy.architectures, start=1):
+            with st.expander(f"Architecture {index}: {architecture.name}", expanded=True):
+                st.text(architecture.framing)
+                st.text(architecture.route_to_ballot)
+                st.caption("What makes this approach distinct")
+                st.text(architecture.differs_from_others)
+                for contention in architecture.contentions:
+                    st.text(contention.title)
+                    st.text(contention.claim)
+                    st.caption(f"Basis: {contention.basis}")
+                st.caption("Judge adaptation")
+                st.text(architecture.judge_adaptation)
+                st.caption("Initial vulnerability")
+                st.text(architecture.main_vulnerability)
+                st.json(architecture.model_dump(mode="json"))
+        if strategy.status == "completed":
+            st.download_button(
+                "Download architectures",
+                strategy.model_dump_json(indent=2),
+                file_name="strategy_architectures.json",
+                mime="application/json",
+            )
     st.download_button(
         "Download Knowledge Packet",
         packet.model_dump_json(indent=2),

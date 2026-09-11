@@ -14,6 +14,8 @@ from debate_engine.schemas.rounds import KnowledgePacket, RoundInput, RoundPlan
 
 if TYPE_CHECKING:
     from debate_engine.agents.research import ResearchProvider
+    from debate_engine.agents.strategy import StrategyProvider
+    from debate_engine.schemas.strategy import StrategyResult
 
 
 class RoundDirector:
@@ -98,3 +100,17 @@ class RoundDirector:
         )
         packet.plan.research_status = packet.research.status
         return packet
+
+    def strategize(
+        self,
+        packet: KnowledgePacket,
+        *,
+        preferences: str = "",
+        provider: StrategyProvider | None = None,
+    ) -> StrategyResult:
+        """Explicit generation stage; prepare() remains retrieval and research only."""
+        from debate_engine.agents.strategy import StrategyAgent
+
+        return StrategyAgent(self.settings, provider=provider).generate(
+            packet, preferences=preferences
+        )
