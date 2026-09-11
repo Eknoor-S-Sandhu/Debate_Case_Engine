@@ -3,7 +3,7 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 12 — Strategy architectures
+## Current status: Milestone 13 — Red Team, repair, and strategy selection
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -17,8 +17,9 @@ Milestone 9 adds a local Streamlit retrieval tester. Milestone 10 adds the
 Round Director and Knowledge Agent, producing a structured archive packet
 for a round. Milestone 11 adds judge adaptation and permission-gated live
 research. Milestone 12 generates three distinct, unranked case architectures
-from the packet and judge guidance. Evaluation, selection, and case writing
-remain outside this milestone.
+from the packet and judge guidance. Milestone 13 critiques, repairs, and ranks
+those architectures using the 100-point rubric; you make the final choice.
+Case writing remains outside the implemented scope.
 
 ## Requirements
 
@@ -332,6 +333,22 @@ exact source quotes when used, assumptions, verification needs, judge adaptation
 and an initial vulnerability. They can be downloaded as JSON. No ranking,
 Red Team, repair, selection, or final case-writing stage runs.
 See [Milestone 12 scope and validation](docs/MILESTONE_12.md).
+
+## Evaluate and choose (Milestone 13)
+
+After generating architectures, click **Evaluate three architectures** in Round
+preparation. This runs Red Team, one repair pass, and scoring using up to three
+additional model requests under the same explicit cloud settings. Inspect the
+repaired outlines and rankings, then confirm your own architecture choice.
+
+```bash
+.venv/bin/python scripts/evaluate_strategies.py evaluate knowledge_packet.json strategy_architectures.json --json > strategy_evaluation.json
+.venv/bin/python scripts/evaluate_strategies.py select strategy_evaluation.json 2 > selected_strategy.json
+```
+
+The rubric totals 100 points; tied scores share a rank. Selection is explicit and
+works offline from an existing completed evaluation. No case writer or speech
+time-budget stage runs. See [Milestone 13 scope and behavior](docs/MILESTONE_13.md).
 
 ## Configuration
 

@@ -3,8 +3,54 @@
 import streamlit as st
 
 from debate_engine.agents import RoundDirector
+from debate_engine.agents.evaluation import select_architecture
 from debate_engine.schemas import JudgeCategory, RoundType, Side
+from debate_engine.schemas.evaluation import RUBRIC
 from debate_engine.schemas.rounds import PrepRules, RoundInput
+
+
+def render_architecture(architecture) -> None:
+    st.text(architecture.framing)
+    if architecture.value:
+        st.text(f"Value: {architecture.value} · Criterion: {architecture.criterion}")
+    st.caption("Core mechanism")
+    st.text(architecture.core_mechanism)
+    st.caption("Route to the ballot")
+    st.text(architecture.route_to_ballot)
+    st.caption("What makes this approach distinct")
+    st.text(architecture.differs_from_others)
+    for contention in architecture.contentions:
+        st.text(contention.title)
+        st.text(contention.claim)
+        st.caption(f"Basis: {contention.basis}")
+        for label, text in [
+            ("Uniqueness", contention.uniqueness),
+            ("Link", contention.link),
+            ("Internal link", contention.internal_link),
+        ]:
+            if text:
+                st.text(f"{label}: {text}")
+        for label, values in [
+            ("Warrant", contention.warrants),
+            ("Impact", contention.impacts),
+            ("Preempt", contention.preempts),
+            ("Assumption", contention.assumptions),
+            ("Verify", contention.needs_verification),
+        ]:
+            for text in values:
+                st.text(f"{label}: {text}")
+        st.text(f"Archive sources: {', '.join(contention.archive_chunk_ids) or 'none'}")
+        st.text(f"Research sources: {', '.join(contention.research_source_ids) or 'none'}")
+        for quote in contention.quotes:
+            st.text(f'Quote ({quote.source_type}, {quote.source_id}): "{quote.text}"')
+    st.caption("Judge adaptation")
+    st.text(architecture.judge_adaptation)
+    st.caption("Why this can win")
+    st.text(architecture.why_this_can_win)
+    st.caption("Initial vulnerability")
+    st.text(architecture.main_vulnerability)
+    with st.expander("Structured architecture data"):
+        st.json(architecture.model_dump(mode="json"))
 
 
 def main() -> None:
@@ -34,6 +80,8 @@ def main() -> None:
     if preview or prepare:
         st.session_state.pop("round_output", None)
         st.session_state.pop("strategy_output", None)
+        st.session_state.pop("evaluation_output", None)
+        st.session_state.pop("architecture_choice", None)
         try:
             context = RoundInput(
                 motion=motion,
@@ -126,6 +174,8 @@ def main() -> None:
     preferences = st.text_area("Strategy preferences", key="strategy_preferences")
     if st.button("Generate three architectures", key="generate_strategies"):
         st.session_state.pop("strategy_output", None)
+        st.session_state.pop("evaluation_output", None)
+        st.session_state.pop("architecture_choice", None)
         with st.spinner("Generating architectures…"):
             st.session_state["strategy_output"] = RoundDirector().strategize(
                 packet, preferences=preferences
@@ -139,49 +189,7 @@ def main() -> None:
             st.warning(warning)
         for index, architecture in enumerate(strategy.architectures, start=1):
             with st.expander(f"Architecture {index}: {architecture.name}", expanded=True):
-                st.text(architecture.framing)
-                if architecture.value:
-                    st.text(f"Value: {architecture.value} · Criterion: {architecture.criterion}")
-                st.caption("Core mechanism")
-                st.text(architecture.core_mechanism)
-                st.caption("Route to the ballot")
-                st.text(architecture.route_to_ballot)
-                st.caption("What makes this approach distinct")
-                st.text(architecture.differs_from_others)
-                for contention in architecture.contentions:
-                    st.text(contention.title)
-                    st.text(contention.claim)
-                    st.caption(f"Basis: {contention.basis}")
-                    for label, text in [
-                        ("Uniqueness", contention.uniqueness),
-                        ("Link", contention.link),
-                        ("Internal link", contention.internal_link),
-                    ]:
-                        if text:
-                            st.text(f"{label}: {text}")
-                    for label, values in [
-                        ("Warrant", contention.warrants),
-                        ("Impact", contention.impacts),
-                        ("Preempt", contention.preempts),
-                        ("Assumption", contention.assumptions),
-                        ("Verify", contention.needs_verification),
-                    ]:
-                        for text in values:
-                            st.text(f"{label}: {text}")
-                    st.text(f"Archive sources: {', '.join(contention.archive_chunk_ids) or 'none'}")
-                    st.text(
-                        f"Research sources: {', '.join(contention.research_source_ids) or 'none'}"
-                    )
-                    for quote in contention.quotes:
-                        st.text(f'Quote ({quote.source_type}, {quote.source_id}): "{quote.text}"')
-                st.caption("Judge adaptation")
-                st.text(architecture.judge_adaptation)
-                st.caption("Why this can win")
-                st.text(architecture.why_this_can_win)
-                st.caption("Initial vulnerability")
-                st.text(architecture.main_vulnerability)
-                with st.expander("Structured architecture data"):
-                    st.json(architecture.model_dump(mode="json"))
+                render_architecture(architecture)
         if strategy.status == "completed":
             st.download_button(
                 "Download architectures",
@@ -189,6 +197,75 @@ def main() -> None:
                 file_name="strategy_architectures.json",
                 mime="application/json",
             )
+    if strategy is not None and strategy.status == "completed":
+        st.subheader("Evaluate and choose a strategy")
+        st.caption(
+            "Run Red Team, one repair pass, and rubric scoring. This makes up to three "
+            "additional model requests using the same cloud settings. You make the final choice."
+        )
+        if st.button("Evaluate three architectures", key="evaluate_strategies"):
+            st.session_state.pop("evaluation_output", None)
+            st.session_state.pop("architecture_choice", None)
+            with st.spinner("Critiquing, repairing, and scoring…"):
+                st.session_state["evaluation_output"] = RoundDirector().evaluate(packet, strategy)
+        evaluation = st.session_state.get("evaluation_output")
+        if evaluation is not None:
+            st.caption(f"Evaluation: {evaluation.status} · Stage: {evaluation.stage}")
+            for warning in evaluation.warnings:
+                st.warning(warning)
+            for critique in evaluation.critiques:
+                with st.expander(f"Red Team · Architecture {critique.architecture_id}"):
+                    for number, finding in enumerate(critique.findings, start=1):
+                        st.text(f"{number}. [{finding.severity}] {finding.weakness}")
+                        st.text(f"Opponent response: {finding.opponent_response}")
+                        st.text(f"Repair goal: {finding.repair_goal}")
+            for repair in evaluation.repairs:
+                with st.expander(f"Repaired architecture {repair.architecture_id}"):
+                    for change in repair.changes:
+                        st.text(f"Change: {change}")
+                    for response in repair.responses:
+                        st.text(
+                            f"Finding {response.finding_number}: "
+                            f"{response.status} — {response.explanation}"
+                        )
+                    for risk in repair.remaining_risks:
+                        st.text(f"Remaining risk: {risk}")
+                    render_architecture(repair.architecture)
+            if evaluation.status == "completed":
+                for row in evaluation.rankings:
+                    with st.expander(
+                        f"Rank {row.rank} · Architecture {row.architecture_id} · {row.total}/100",
+                        expanded=True,
+                    ):
+                        for key, maximum in RUBRIC.items():
+                            score = getattr(row.scores, key)
+                            st.text(
+                                f"{key.replace('_', ' ').title()}: "
+                                f"{score.points}/{maximum} — {score.rationale}"
+                            )
+                        st.text(f"Tradeoffs: {row.tradeoffs}")
+                names = {r.architecture_id: r.architecture.name for r in evaluation.repairs}
+                choice = st.selectbox(
+                    "Your architecture choice",
+                    [None, 1, 2, 3],
+                    key="architecture_choice",
+                    format_func=lambda i: (
+                        "Choose an architecture" if i is None else (f"{i}: {names[i]}")
+                    ),
+                )
+                if st.button("Confirm architecture choice", disabled=choice is None):
+                    evaluation = select_architecture(evaluation, choice)
+                    st.session_state["evaluation_output"] = evaluation
+                if evaluation.selected_architecture_id is not None:
+                    st.success(
+                        f"Your confirmed choice: Architecture {evaluation.selected_architecture_id}"
+                    )
+                st.download_button(
+                    "Download evaluation and choice",
+                    evaluation.model_dump_json(indent=2),
+                    file_name="strategy_evaluation.json",
+                    mime="application/json",
+                )
     st.download_button(
         "Download Knowledge Packet",
         packet.model_dump_json(indent=2),

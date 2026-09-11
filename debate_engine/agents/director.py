@@ -15,6 +15,7 @@ from debate_engine.schemas.rounds import KnowledgePacket, RoundInput, RoundPlan
 if TYPE_CHECKING:
     from debate_engine.agents.research import ResearchProvider
     from debate_engine.agents.strategy import StrategyProvider
+    from debate_engine.schemas.evaluation import EvaluationResult
     from debate_engine.schemas.strategy import StrategyResult
 
 
@@ -114,3 +115,15 @@ class RoundDirector:
         return StrategyAgent(self.settings, provider=provider).generate(
             packet, preferences=preferences
         )
+
+    def evaluate(
+        self,
+        packet: KnowledgePacket,
+        strategy: StrategyResult,
+        *,
+        provider: StrategyProvider | None = None,
+    ) -> EvaluationResult:
+        """Explicit Milestone 13 stage; no automatic selection or case writing."""
+        from debate_engine.agents.evaluation import EvaluationAgent
+
+        return EvaluationAgent(self.settings, provider=provider).evaluate(packet, strategy)
