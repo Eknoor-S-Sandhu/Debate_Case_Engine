@@ -3,7 +3,7 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 13 — Red Team, repair, and strategy selection
+## Current status: Milestone 14 — Case Writer and speech budgeting
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -19,7 +19,8 @@ for a round. Milestone 11 adds judge adaptation and permission-gated live
 research. Milestone 12 generates three distinct, unranked case architectures
 from the packet and judge guidance. Milestone 13 critiques, repairs, and ranks
 those architectures using the 100-point rubric; you make the final choice.
-Case writing remains outside the implemented scope.
+Milestone 14 expands your chosen strategy into a formatted case, checks the
+speech budget, and performs a final improvement pass.
 
 ## Requirements
 
@@ -349,6 +350,23 @@ repaired outlines and rankings, then confirm your own architecture choice.
 The rubric totals 100 points; tied scores share a rank. Selection is explicit and
 works offline from an existing completed evaluation. No case writer or speech
 time-budget stage runs. See [Milestone 13 scope and behavior](docs/MILESTONE_13.md).
+
+## Write the selected case (Milestone 14)
+
+After confirming an architecture, use **Write final case** in Round preparation.
+Government/affirmative gets 7 minutes and opposition/negative gets 8 minutes.
+Adjust the reading speed and pause reserve for your delivery. The writer drafts,
+trims if needed, and improves once; only a validated case that fits the calculated
+budget is shown. Download Markdown or structured JSON.
+
+```bash
+.venv/bin/python scripts/write_case.py knowledge_packet.json strategy_architectures.json selected_strategy.json
+```
+
+This requires the original packet and architecture exports plus the completed
+evaluation containing your explicit choice. It uses the same cloud settings and
+makes two or three model requests. Offline prep remains blocked. See
+[Milestone 14 formats, timing and limitations](docs/MILESTONE_14.md).
 
 ## Configuration
 

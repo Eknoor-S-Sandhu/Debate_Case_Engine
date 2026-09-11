@@ -5,6 +5,7 @@ import streamlit as st
 from debate_engine.agents import RoundDirector
 from debate_engine.agents.evaluation import select_architecture
 from debate_engine.schemas import JudgeCategory, RoundType, Side
+from debate_engine.schemas.case import SpeechBudget
 from debate_engine.schemas.evaluation import RUBRIC
 from debate_engine.schemas.rounds import PrepRules, RoundInput
 
@@ -80,6 +81,7 @@ def main() -> None:
     if preview or prepare:
         st.session_state.pop("round_output", None)
         st.session_state.pop("strategy_output", None)
+        st.session_state.pop("case_output", None)
         st.session_state.pop("evaluation_output", None)
         st.session_state.pop("architecture_choice", None)
         try:
@@ -174,6 +176,7 @@ def main() -> None:
     preferences = st.text_area("Strategy preferences", key="strategy_preferences")
     if st.button("Generate three architectures", key="generate_strategies"):
         st.session_state.pop("strategy_output", None)
+        st.session_state.pop("case_output", None)
         st.session_state.pop("evaluation_output", None)
         st.session_state.pop("architecture_choice", None)
         with st.spinner("Generating architectures…"):
@@ -204,6 +207,7 @@ def main() -> None:
             "additional model requests using the same cloud settings. You make the final choice."
         )
         if st.button("Evaluate three architectures", key="evaluate_strategies"):
+            st.session_state.pop("case_output", None)
             st.session_state.pop("evaluation_output", None)
             st.session_state.pop("architecture_choice", None)
             with st.spinner("Critiquing, repairing, and scoring…"):
@@ -254,12 +258,62 @@ def main() -> None:
                     ),
                 )
                 if st.button("Confirm architecture choice", disabled=choice is None):
+                    st.session_state.pop("case_output", None)
                     evaluation = select_architecture(evaluation, choice)
                     st.session_state["evaluation_output"] = evaluation
                 if evaluation.selected_architecture_id is not None:
                     st.success(
                         f"Your confirmed choice: Architecture {evaluation.selected_architecture_id}"
                     )
+                if evaluation.selected_architecture_id is not None:
+                    st.subheader("Write your case")
+                    st.caption(
+                        "Uses the confirmed choice. Government/affirmative: 7 minutes; "
+                        "opposition/negative: 8 minutes. Two model requests, or three if trimming "
+                        "is needed, using the existing cloud settings."
+                    )
+                    wpm = st.number_input(
+                        "Reading speed (words per minute)", 80, 400, 150, key="case_wpm"
+                    )
+                    reserve = st.number_input(
+                        "Reserve for pauses (seconds)", 0, 120, 30, key="case_reserve"
+                    )
+                    if st.button("Write final case", key="write_case"):
+                        st.session_state.pop("case_output", None)
+                        with st.spinner("Writing and refining your case…"):
+                            st.session_state["case_output"] = RoundDirector().write_case(
+                                packet,
+                                strategy,
+                                evaluation,
+                                budget=SpeechBudget(words_per_minute=wpm, reserve_seconds=reserve),
+                            )
+                    final_case = st.session_state.get("case_output")
+                    if final_case is not None:
+                        for warning in final_case.warnings:
+                            st.warning(warning)
+                        if final_case.status == "completed":
+                            st.caption(
+                                f"Selected strategy: {final_case.selected_strategy_score}/100 · "
+                                f"{final_case.word_count}/{final_case.word_limit} words · "
+                                f"Estimated {final_case.estimated_seconds / 60:.1f} minutes "
+                                f"at {final_case.budget.words_per_minute} wpm. "
+                                "Results use the last submitted timing settings."
+                            )
+                            st.markdown(final_case.markdown)
+                            st.download_button(
+                                "Download case (Markdown)",
+                                final_case.markdown,
+                                file_name="debate_case.md",
+                                mime="text/markdown",
+                            )
+                            st.download_button(
+                                "Download case (JSON)",
+                                final_case.model_dump_json(indent=2),
+                                file_name="debate_case.json",
+                                mime="application/json",
+                            )
+                        else:
+                            st.error(f"Case not completed: {final_case.status}")
                 st.download_button(
                     "Download evaluation and choice",
                     evaluation.model_dump_json(indent=2),

@@ -15,6 +15,7 @@ from debate_engine.schemas.rounds import KnowledgePacket, RoundInput, RoundPlan
 if TYPE_CHECKING:
     from debate_engine.agents.research import ResearchProvider
     from debate_engine.agents.strategy import StrategyProvider
+    from debate_engine.schemas.case import CaseResult, SpeechBudget
     from debate_engine.schemas.evaluation import EvaluationResult
     from debate_engine.schemas.strategy import StrategyResult
 
@@ -127,3 +128,19 @@ class RoundDirector:
         from debate_engine.agents.evaluation import EvaluationAgent
 
         return EvaluationAgent(self.settings, provider=provider).evaluate(packet, strategy)
+
+    def write_case(
+        self,
+        packet: KnowledgePacket,
+        strategy: StrategyResult,
+        evaluation: EvaluationResult,
+        *,
+        budget: SpeechBudget | None = None,
+        provider: StrategyProvider | None = None,
+    ) -> CaseResult:
+        """Write only the explicitly selected strategy; never change the user's choice."""
+        from debate_engine.agents.case_writer import CaseWriter
+
+        return CaseWriter(self.settings, provider=provider).write(
+            packet, strategy, evaluation, budget=budget
+        )
