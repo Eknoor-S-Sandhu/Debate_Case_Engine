@@ -3,7 +3,7 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 8
+## Current status: Phase 1, Milestone 9
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -12,8 +12,8 @@ Milestone 8 combines bounded semantic and lexical candidate retrieval with
 deterministic debate-aware scoring. It returns related full arguments and
 reusable submodules, applies relevance-gated source/masterfile preferences,
 enforces theory/K eligibility, suppresses duplicates, and diversifies repeated
-argumentative functions. Scores and hierarchy expansion are inspectable. It
-still does not generate cases, run agents, or provide a user interface.
+argumentative functions. Scores and hierarchy expansion are inspectable. Milestone 9 adds a local Streamlit retrieval tester. It does not generate
+cases or run agents.
 
 ## Requirements
 
@@ -220,6 +220,36 @@ masterfile, motion-similarity, section-fit, compatibility, freshness, and
 redundancy components. These are deterministic retrieval-support signals, not
 LLM confidence estimates. No case writing or argument adaptation occurs in
 Milestone 8.
+
+## Open the retrieval tester (Milestone 9)
+
+From the repository root, after building the database and vector index:
+
+```bash
+.venv/bin/python -m streamlit run ui/app.py --server.address 127.0.0.1
+```
+
+Open the local URL printed by Streamlit. Enter a motion, choose the round/side
+context and optional source filter, then select **Retrieve**. The source filter
+restricts results; side and round type are ranking context, not strict filters.
+Additional options accept one extra concept or query per line and explicit
+include/exclude/automatic theory and kritik eligibility. `None` preserves the
+retriever's automatic behavior. Relative database paths resolve from the repo.
+The Chroma path uses the existing environment configuration; it must correspond
+to the selected SQLite database.
+
+Full arguments and submodules appear separately with original text, source
+paths, heading metadata, score components, ranking reasons, and parent/child
+context. Search details show the submitted request, generated queries, and
+retrieval statistics. Support labels are retrieval signals, not truth estimates.
+Results remain tied to the last submitted request until Retrieve is pressed
+again; a failed search clears earlier results. Missing databases, no matches,
+and backend warnings are shown in the page.
+
+The tester calls the Milestone 8 pipeline only on submission. It does not build
+or rebuild indexes. Existing retrieval may initialize Chroma storage and load
+or download the configured embedding model on the first search. No LLM or case
+generation is used. UI tests use Streamlit AppTest with an isolated retriever.
 
 ## Configuration
 
