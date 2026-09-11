@@ -3,7 +3,7 @@
 A local Parliamentary Debate preparation system. Everything runs on your own
 machine against your own debate library.
 
-## Current status: Phase 1, Milestone 9
+## Current status: Milestone 10 — round preparation
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -12,8 +12,10 @@ Milestone 8 combines bounded semantic and lexical candidate retrieval with
 deterministic debate-aware scoring. It returns related full arguments and
 reusable submodules, applies relevance-gated source/masterfile preferences,
 enforces theory/K eligibility, suppresses duplicates, and diversifies repeated
-argumentative functions. Scores and hierarchy expansion are inspectable. Milestone 9 adds a local Streamlit retrieval tester. It does not generate
-cases or run agents.
+argumentative functions. Scores and hierarchy expansion are inspectable.
+Milestone 9 adds a local Streamlit retrieval tester. Milestone 10 adds the
+Round Director and Knowledge Agent, producing a structured archive packet
+for a round. Research, judge adaptation, strategy, and case writing come later.
 
 ## Requirements
 
@@ -250,6 +252,39 @@ The tester calls the Milestone 8 pipeline only on submission. It does not build
 or rebuild indexes. Existing retrieval may initialize Chroma storage and load
 or download the configured embedding model on the first search. No LLM or case
 generation is used. UI tests use Streamlit AppTest with an isolated retriever.
+
+## Prepare a round (Milestone 10)
+
+The Streamlit sidebar now includes **Round preparation**. Enter your motion,
+side, round type, judge category, and prep rules. Preview the retrieval plan
+without opening indexes, or prepare an organized Knowledge Packet. The packet
+shows original text, source paths, ranking scores, and verification notes, and
+can be downloaded as JSON for later stages.
+
+The same workflow is available from the repository root:
+
+```bash
+.venv/bin/python scripts/prepare_round.py docs/examples/round_input.json --plan-only
+.venv/bin/python scripts/prepare_round.py docs/examples/round_input.json --json
+```
+
+Copy the example JSON and replace its values for your round. The command also
+accepts `--database PATH`. Plan-only needs no database or model. Packet creation
+requires SQLite; semantic retrieval requires a matching existing Chroma index
+and cached embedding model. Missing semantic resources fall back to lexical
+retrieval with warnings; absent SQLite produces an error without creating it.
+
+Round preparation never downloads models, including when internet research is
+permitted. Build/cache resources before prep. Internet permission is recorded
+for future research; no research runs in Milestone 10. Judge notes are preserved
+without automatic classification. The director uses conservative motion-prefix
+inference only when round type is omitted; explicit values take precedence.
+
+The packet retains selected argument excerpts, not whole reconstructed cases.
+Freshness notes flag material to verify, and coverage gaps describe this set of
+retrieved modules only. No facts or source text are rewritten. The existing
+retrieval tester and build commands retain their behavior.
+See [the Milestone 10 scope](docs/MILESTONE_10.md) for contracts and limitations.
 
 ## Configuration
 

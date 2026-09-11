@@ -89,9 +89,11 @@ class EmbeddingService:
         settings: Settings | None = None,
         *,
         model_factory: ModelFactory | None = None,
+        allow_download: bool = True,
     ) -> None:
         self.settings = settings or get_settings()
         self._model_factory = model_factory
+        self.allow_download = allow_download
         self._model: EmbeddingModel | None = None
 
     @property
@@ -124,6 +126,11 @@ class EmbeddingService:
         try:
             model = factory(self.model_name, local_files_only=True, **model_kwargs)
         except Exception as cache_error:
+            if not self.allow_download:
+                raise RuntimeError(
+                    "Embedding model is not available from the local cache; "
+                    "cache it before round preparation. No download was attempted."
+                ) from cache_error
             try:
                 model = factory(self.model_name, local_files_only=False, **model_kwargs)
             except Exception as download_error:

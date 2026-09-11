@@ -1,0 +1,10 @@
+{
+  "motion": "THW subsidize public transit",
+  "side": "gov",
+  "round_type": "policy",
+  "judge_category": "flow",
+  "prep_rules": {"minutes": 15, "internet_allowed": false},
+  "explicit_concepts": ["employment access", "transport costs"],
+  "desired_arguments": 5,
+  "desired_submodules": 15
+}
