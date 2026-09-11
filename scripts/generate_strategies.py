@@ -34,6 +34,7 @@ def generate(
             typer.echo(f"Framing: {architecture.framing}")
             if architecture.value:
                 typer.echo(f"Value: {architecture.value}; criterion: {architecture.criterion}")
+            typer.echo(f"Core mechanism: {architecture.core_mechanism}")
             typer.echo(f"Ballot route: {architecture.route_to_ballot}")
             typer.echo(f"Distinct approach: {architecture.differs_from_others}")
             for contention in architecture.contentions:
@@ -59,6 +60,8 @@ def generate(
                 typer.echo(
                     f"Research sources: {', '.join(contention.research_source_ids) or 'none'}"
                 )
+                for quote in contention.quotes:
+                    typer.echo(f'Quote ({quote.source_type}, {quote.source_id}): "{quote.text}"')
             typer.echo(f"Judge adaptation: {architecture.judge_adaptation}")
             typer.echo(f"Why this can win: {architecture.why_this_can_win}")
             typer.echo(f"Main vulnerability: {architecture.main_vulnerability}")

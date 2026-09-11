@@ -37,10 +37,14 @@ class Contention(StrictModel):
     @model_validator(mode="after")
     def validate_basis(self):
         archive, research = bool(self.archive_chunk_ids), bool(self.research_source_ids)
-        if self.basis == "archive_adaptation" and not archive:
-            raise ValueError("Archive adaptation requires archive sources.")
-        if self.basis == "research_informed" and not research:
-            raise ValueError("Research-informed reasoning requires research sources.")
+        if self.basis == "archive_adaptation" and (not archive or research):
+            raise ValueError(
+                "Archive adaptation requires only archive sources; use mixed for both."
+            )
+        if self.basis == "research_informed" and (not research or archive):
+            raise ValueError(
+                "Research-informed reasoning requires only research sources; use mixed for both."
+            )
         if self.basis == "mixed" and not (archive and research):
             raise ValueError("Mixed reasoning requires archive and research sources.")
         if self.basis == "new_reasoning" and (archive or research or self.quotes):

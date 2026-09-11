@@ -102,22 +102,22 @@ def validate_architectures(output: ArchitectureSet, context: dict) -> None:
         if len(set(claims)) != len(claims):
             raise ValueError("Contentions must provide independent offense.")
         for contention in architecture.contentions:
-            if kind == "policy" and contention.argument_style == "substantive":
-                if not all([contention.uniqueness, contention.link, contention.internal_link]):
-                    raise ValueError(
-                        "Policy contentions require uniqueness, link, and internal link."
-                    )
+            if (
+                kind == "policy"
+                and contention.argument_style == "substantive"
+                and not all([contention.uniqueness, contention.link, contention.internal_link])
+            ):
+                raise ValueError("Policy contentions require uniqueness, link, and internal link.")
             if not set(contention.archive_chunk_ids) <= archive.keys():
                 raise ValueError("Unknown or unsupplied archive citation.")
             if not set(contention.research_source_ids) <= research.keys():
                 raise ValueError("Unknown or unsupplied research citation.")
-            if contention.argument_style in {"theory", "kritik"}:
-                if not any(
-                    archive[key][contention.argument_style] for key in contention.archive_chunk_ids
-                ):
-                    raise ValueError(
-                        "Theory/K contentions require eligible archive material of that type."
-                    )
+            if contention.argument_style in {"theory", "kritik"} and not any(
+                archive[key][contention.argument_style] for key in contention.archive_chunk_ids
+            ):
+                raise ValueError(
+                    "Theory/K contentions require eligible archive material of that type."
+                )
             for quote in contention.quotes:
                 sources = archive if quote.source_type == "archive" else research
                 cited = (
@@ -130,7 +130,9 @@ def validate_architectures(output: ArchitectureSet, context: dict) -> None:
                 if quote.text not in sources[quote.source_id]["text"]:
                     raise ValueError("Quote does not match the supplied original excerpt.")
             unverified = bool(contention.research_source_ids) or any(
-                archive[key]["verification_notes"] for key in contention.archive_chunk_ids
+                archive[key]["verification_notes"]
+                or archive[key]["freshness"] in {"possibly_stale", "stale_empirics"}
+                for key in contention.archive_chunk_ids
             )
             if unverified and not contention.needs_verification:
                 raise ValueError("Unverified source use must retain verification needs.")
@@ -227,12 +229,14 @@ class StrategyAgent:
         except (ValueError, ValidationError):
             result.status = "invalid_output"
             result.warnings.append(
-                "Model output failed structure, source, or diversity validation. No architectures were accepted."
+                "Model output failed structure, source, or diversity validation. "
+                "No architectures were accepted."
             )
             return result
         result.status = "completed"
         result.architectures = output.architectures
         result.warnings.append(
-            "Unranked proposals, not verified cases. Diversity checks detect text overlap, not strategic quality."
+            "Unranked proposals, not verified cases. "
+            "Diversity checks detect text overlap, not strategic quality."
         )
         return result

@@ -390,6 +390,8 @@ def test_cli_exports_three_architectures(settings, tmp_path, monkeypatch):
     assert len(StrategyResult.model_validate_json(run.output).architectures) == 3
     run = CliRunner().invoke(app, [str(path)])
     assert "ARCHITECTURE 3" in run.output
+    assert "Core mechanism:" in run.output
+    assert "Warrant:" in run.output
 
 
 def test_ui_generation_does_not_repeat_preparation(settings, monkeypatch):
@@ -411,7 +413,43 @@ def test_ui_generation_does_not_repeat_preparation(settings, monkeypatch):
     page.button(key="generate_strategies").click().run()
     assert not page.exception
     assert calls == [1]
+    assert any("Warrant: Mechanism:" in element.value for element in page.text)
+    assert any("Preempt:" in element.value for element in page.text)
     assert any("Architecture 3" in expander.label for expander in page.expander)
     page.text_area(key="motion").set_value("Different motion")
     page.button[0].click().run()
     assert not any("Architecture 3" in expander.label for expander in page.expander)
+
+
+@pytest.mark.parametrize("freshness", ["possibly_stale", "stale_empirics"])
+def test_stale_metadata_requires_verification_even_without_packet_notes(settings, freshness):
+    knowledge = packet(settings)
+    add_source(knowledge, freshness=freshness)
+    value = output()
+    contention = value["architectures"][0]["contentions"][0]
+    contention.update(basis="archive_adaptation", archive_chunk_ids=["archive1"])
+    agent = StrategyAgent(settings, provider=Provider(value))
+    assert agent.generate(knowledge).status == "invalid_output"
+    contention["needs_verification"] = ["Check the currency of this source."]
+    assert agent.generate(knowledge).status == "completed"
+
+
+@pytest.mark.parametrize("basis", ["archive_adaptation", "research_informed"])
+def test_both_source_types_require_mixed_basis(basis):
+    value = output()
+    value["architectures"][0]["contentions"][0].update(
+        basis=basis, archive_chunk_ids=["archive1"], research_source_ids=["research1"]
+    )
+    with pytest.raises(ValueError, match="use mixed"):
+        ArchitectureSet.model_validate(value)
+
+
+def test_cli_failure_has_nonzero_exit_and_structured_status(settings, tmp_path, monkeypatch):
+    result = StrategyAgent(settings, provider=Provider(fail=True)).generate(packet(settings))
+    monkeypatch.setattr(StrategyAgent, "generate", lambda *args, **kwargs: result)
+    path = tmp_path / "packet.json"
+    path.write_text(packet(settings).model_dump_json())
+    run = CliRunner().invoke(app, [str(path), "--json"])
+    assert run.exit_code == 1
+    assert StrategyResult.model_validate_json(run.output).status == "failed"
+    assert "PRIVATE API KEY" not in run.output

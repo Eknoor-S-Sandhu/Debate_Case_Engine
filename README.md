@@ -1,9 +1,9 @@
 # Debate Case Engine
 
-A local Parliamentary Debate preparation system. Everything runs on your own
-machine against your own debate library.
+A Parliamentary Debate preparation system with local archive retrieval and
+optional cloud research and strategy generation.
 
-## Current status: Milestone 11 — Research and Judge adaptation
+## Current status: Milestone 12 — Strategy architectures
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -16,7 +16,9 @@ argumentative functions. Scores and hierarchy expansion are inspectable.
 Milestone 9 adds a local Streamlit retrieval tester. Milestone 10 adds the
 Round Director and Knowledge Agent, producing a structured archive packet
 for a round. Milestone 11 adds judge adaptation and permission-gated live
-research. Strategy and case writing come later.
+research. Milestone 12 generates three distinct, unranked case architectures
+from the packet and judge guidance. Evaluation, selection, and case writing
+remain outside this milestone.
 
 ## Requirements
 
@@ -306,6 +308,30 @@ Judge guidance is rule-based, preserves original notes, and is applied before
 retrieval. Specific no-theory/no-K preferences affect retrieval unless an explicit
 round option overrides them. This milestone does not generate strategies.
 See [Milestone 11 setup and behavior](docs/MILESTONE_11.md) for details.
+
+## Generate architectures (Milestone 12)
+
+After preparing a Knowledge Packet, use **Generate three architectures** on the
+Round preparation page, or run:
+
+```bash
+.venv/bin/python scripts/generate_strategies.py knowledge_packet.json
+.venv/bin/python scripts/generate_strategies.py knowledge_packet.json --preferences "Emphasize clear causal mechanisms" --json
+```
+
+Set `DEBATE_ENGINE_STRATEGY__ALLOW_REMOTE=true`,
+`DEBATE_ENGINE_STRATEGY__API_KEY`, and `DEBATE_ENGINE_STRATEGY__MODEL` in your
+local `.env` or environment. Supply an OpenAI model available to your account
+that supports Responses structured output. Generation uses provider credits
+and sends selected archive excerpts, judge notes, research excerpts, and strategy
+preferences to OpenAI. It requires internet-permitted prep, a concrete side,
+and a policy, value, or fact round type. Missing configuration makes no request.
+
+Results include two or three developed contentions per architecture, source IDs,
+exact source quotes when used, assumptions, verification needs, judge adaptation,
+and an initial vulnerability. They can be downloaded as JSON. No ranking,
+Red Team, repair, selection, or final case-writing stage runs.
+See [Milestone 12 scope and validation](docs/MILESTONE_12.md).
 
 ## Configuration
 

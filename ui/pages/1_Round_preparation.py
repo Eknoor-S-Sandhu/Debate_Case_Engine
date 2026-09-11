@@ -140,6 +140,11 @@ def main() -> None:
         for index, architecture in enumerate(strategy.architectures, start=1):
             with st.expander(f"Architecture {index}: {architecture.name}", expanded=True):
                 st.text(architecture.framing)
+                if architecture.value:
+                    st.text(f"Value: {architecture.value} · Criterion: {architecture.criterion}")
+                st.caption("Core mechanism")
+                st.text(architecture.core_mechanism)
+                st.caption("Route to the ballot")
                 st.text(architecture.route_to_ballot)
                 st.caption("What makes this approach distinct")
                 st.text(architecture.differs_from_others)
@@ -147,11 +152,36 @@ def main() -> None:
                     st.text(contention.title)
                     st.text(contention.claim)
                     st.caption(f"Basis: {contention.basis}")
+                    for label, text in [
+                        ("Uniqueness", contention.uniqueness),
+                        ("Link", contention.link),
+                        ("Internal link", contention.internal_link),
+                    ]:
+                        if text:
+                            st.text(f"{label}: {text}")
+                    for label, values in [
+                        ("Warrant", contention.warrants),
+                        ("Impact", contention.impacts),
+                        ("Preempt", contention.preempts),
+                        ("Assumption", contention.assumptions),
+                        ("Verify", contention.needs_verification),
+                    ]:
+                        for text in values:
+                            st.text(f"{label}: {text}")
+                    st.text(f"Archive sources: {', '.join(contention.archive_chunk_ids) or 'none'}")
+                    st.text(
+                        f"Research sources: {', '.join(contention.research_source_ids) or 'none'}"
+                    )
+                    for quote in contention.quotes:
+                        st.text(f'Quote ({quote.source_type}, {quote.source_id}): "{quote.text}"')
                 st.caption("Judge adaptation")
                 st.text(architecture.judge_adaptation)
+                st.caption("Why this can win")
+                st.text(architecture.why_this_can_win)
                 st.caption("Initial vulnerability")
                 st.text(architecture.main_vulnerability)
-                st.json(architecture.model_dump(mode="json"))
+                with st.expander("Structured architecture data"):
+                    st.json(architecture.model_dump(mode="json"))
         if strategy.status == "completed":
             st.download_button(
                 "Download architectures",
