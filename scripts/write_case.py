@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from debate_engine.agents.case_writer import CaseWriter
+from debate_engine.config import ProviderName, get_settings
 from debate_engine.schemas.case import SpeechBudget
 from debate_engine.schemas.evaluation import EvaluationResult
 from debate_engine.schemas.rounds import KnowledgePacket
@@ -21,6 +22,9 @@ def write(
     evaluation_file: Path,
     words_per_minute: Annotated[int, typer.Option(min=80, max=400)] = 150,
     reserve_seconds: Annotated[int, typer.Option(min=0, max=120)] = 30,
+    provider: Annotated[
+        ProviderName | None, typer.Option(help="Inference provider override.")
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ):
     try:
@@ -30,7 +34,10 @@ def write(
     except (OSError, ValueError):
         typer.echo("Could not read valid packet, strategy and evaluation JSON files.", err=True)
         raise typer.Exit(1) from None
-    result = CaseWriter().write(
+    settings = get_settings().model_copy(deep=True)
+    if provider is not None:
+        settings.strategy.provider = provider
+    result = CaseWriter(settings).write(
         packet,
         strategy,
         evaluation,

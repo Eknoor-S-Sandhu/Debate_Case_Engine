@@ -12,6 +12,7 @@ root, and absolute overrides are honoured as given.
 from __future__ import annotations
 
 import sys
+from enum import StrEnum
 
 MINIMUM_PYTHON_VERSION: tuple[int, int] = (3, 12)
 
@@ -224,10 +225,26 @@ class ResearchSettings(BaseModel):
     max_excerpt_characters: int = Field(default=2000, ge=100, le=5000)
 
 
+class ProviderName(StrEnum):
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+
+
+class InferenceProviderSettings(BaseModel):
+    """Credentials and explicit model choice for one provider only."""
+
+    model_config = {"extra": "forbid", "validate_assignment": True, "str_strip_whitespace": True}
+    allow_remote: bool | None = None
+    api_key: SecretStr | None = None
+    model: str | None = Field(default=None, min_length=1)
+
+
 class StrategySettings(BaseModel):
     """Cloud generation is explicit because it sends selected private excerpts."""
 
     model_config = {"extra": "forbid", "validate_assignment": True, "str_strip_whitespace": True}
+    provider: ProviderName = ProviderName.OPENAI
     allow_remote: bool = False
     api_key: SecretStr | None = None
     model: str | None = Field(default=None, min_length=1)
@@ -284,6 +301,9 @@ class Settings(BaseSettings):
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     research: ResearchSettings = Field(default_factory=ResearchSettings)
     strategy: StrategySettings = Field(default_factory=StrategySettings)
+    openai: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
+    anthropic: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
+    gemini: InferenceProviderSettings = Field(default_factory=InferenceProviderSettings)
 
     # --- Deduplication -----------------------------------------------------
     duplicate_similarity_threshold: float = Field(default=0.92, ge=0.0, le=1.0)

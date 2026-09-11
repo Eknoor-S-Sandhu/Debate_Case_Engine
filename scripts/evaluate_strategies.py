@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from debate_engine.agents.evaluation import EvaluationAgent, select_architecture
+from debate_engine.config import ProviderName, get_settings
 from debate_engine.schemas.evaluation import RUBRIC, EvaluationResult
 from debate_engine.schemas.rounds import KnowledgePacket
 from debate_engine.schemas.strategy import StrategyResult
@@ -17,6 +18,9 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 def evaluate(
     packet_file: Path,
     strategy_file: Path,
+    provider: Annotated[
+        ProviderName | None, typer.Option(help="Inference provider override.")
+    ] = None,
     as_json: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
     """Run one Red Team, repair and scoring pass (up to three provider calls)."""
@@ -26,7 +30,10 @@ def evaluate(
     except (OSError, ValueError):
         typer.echo("Could not read valid packet and strategy JSON files.", err=True)
         raise typer.Exit(1) from None
-    result = EvaluationAgent().evaluate(packet, strategy)
+    settings = get_settings().model_copy(deep=True)
+    if provider is not None:
+        settings.strategy.provider = provider
+    result = EvaluationAgent(settings).evaluate(packet, strategy)
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     else:

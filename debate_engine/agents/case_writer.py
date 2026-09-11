@@ -6,7 +6,11 @@ import re
 from debate_engine.agents.case_prompt import DRAFT_CASE, IMPROVE_CASE, TRIM_CASE
 from debate_engine.agents.evaluation import fingerprint
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
-from debate_engine.agents.strategy_provider import OpenAIStrategyProvider
+from debate_engine.agents.strategy_provider import (
+    create_provider,
+    inference_metadata,
+    inference_ready,
+)
 from debate_engine.config import Settings, get_settings
 from debate_engine.schemas import RoundType, Side
 from debate_engine.schemas.case import CaseDocument, CaseResult, SpeechBudget
@@ -165,7 +169,7 @@ class CaseWriter:
             strategy_fingerprint=fingerprint(strategy),
             evaluation_fingerprint=fingerprint(evaluation),
             budget=budget,
-            model=self.settings.strategy.model,
+            **inference_metadata(self.settings, self.provider is not None),
         )
         if not packet.plan.round_input.prep_rules.internet_allowed:
             result.status = "disabled_by_prep_rules"
@@ -220,16 +224,13 @@ class CaseWriter:
             (result.speech_minutes * 60 - budget.reserve_seconds) * budget.words_per_minute // 60
         )
         config = self.settings.strategy
-        if self.provider is None and (
-            not config.allow_remote
-            or config.api_key is None
-            or not config.api_key.get_secret_value().strip()
-            or not config.model
-        ):
+        if self.provider is None and not inference_ready(self.settings):
             result.status = "not_configured"
-            result.warnings.append("Configure strategy ALLOW_REMOTE, API_KEY, and MODEL.")
+            result.warnings.append(
+                "Configure the selected provider API_KEY, MODEL, and remote access."
+            )
             return result
-        provider = self.provider or OpenAIStrategyProvider(self.settings)
+        provider = self.provider or create_provider(self.settings)
         data = {
             "context": context,
             "selected_architecture": selected.model_dump(mode="json"),

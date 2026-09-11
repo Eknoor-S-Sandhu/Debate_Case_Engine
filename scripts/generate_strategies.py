@@ -6,6 +6,7 @@ from typing import Annotated
 import typer
 
 from debate_engine.agents.strategy import StrategyAgent
+from debate_engine.config import ProviderName, get_settings
 from debate_engine.schemas.rounds import KnowledgePacket
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -15,6 +16,9 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 def generate(
     packet_file: Annotated[Path, typer.Argument(help="Exported Knowledge Packet JSON.")],
     preferences: Annotated[str, typer.Option(help="Optional strategic preferences.")] = "",
+    provider: Annotated[
+        ProviderName | None, typer.Option(help="Inference provider override.")
+    ] = None,
     as_json: Annotated[
         bool, typer.Option("--json", help="Print structured strategy output.")
     ] = False,
@@ -24,7 +28,10 @@ def generate(
     except Exception:
         typer.echo("Could not read a valid Knowledge Packet JSON file.", err=True)
         raise typer.Exit(1) from None
-    result = StrategyAgent().generate(packet, preferences=preferences)
+    settings = get_settings().model_copy(deep=True)
+    if provider is not None:
+        settings.strategy.provider = provider
+    result = StrategyAgent(settings).generate(packet, preferences=preferences)
     if as_json:
         typer.echo(result.model_dump_json(indent=2))
     else:

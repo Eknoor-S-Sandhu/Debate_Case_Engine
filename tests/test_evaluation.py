@@ -154,7 +154,7 @@ def test_missing_configuration_never_calls_provider(setup, monkeypatch):
     def fail(*args):
         pytest.fail("Must not construct provider")
 
-    monkeypatch.setattr("debate_engine.agents.evaluation.OpenAIStrategyProvider", fail)
+    monkeypatch.setattr("debate_engine.agents.evaluation.create_provider", fail)
     assert EvaluationAgent(settings).evaluate(knowledge, strategy).status == "not_configured"
 
 

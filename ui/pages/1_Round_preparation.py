@@ -4,6 +4,8 @@ import streamlit as st
 
 from debate_engine.agents import RoundDirector
 from debate_engine.agents.evaluation import select_architecture
+from debate_engine.agents.strategy_provider import inference_ready, provider_settings
+from debate_engine.config import ProviderName, get_settings
 from debate_engine.schemas import JudgeCategory, RoundType, Side
 from debate_engine.schemas.case import SpeechBudget
 from debate_engine.schemas.evaluation import RUBRIC
@@ -58,6 +60,25 @@ def main() -> None:
     st.set_page_config(page_title="Round preparation", page_icon="📚", layout="wide")
     st.title("Round preparation")
     st.caption("Prepare archive material, judge guidance, and research for your round.")
+    settings = get_settings().model_copy(deep=True)
+    providers = list(ProviderName)
+    provider = st.selectbox(
+        "Inference provider",
+        providers,
+        index=providers.index(settings.strategy.provider),
+        key="inference_provider",
+    )
+    settings.strategy.provider = provider
+    selected_config = provider_settings(settings)
+    st.caption(
+        f"Next generation request: {provider.value} · "
+        f"Model: {selected_config.model or 'not configured'}. "
+        "Selected archive excerpts and judge notes are sent to this provider."
+    )
+    if not inference_ready(settings):
+        st.info(
+            "Configure this provider's API key, model and remote access in your local environment."
+        )
     with st.form("round"):
         motion = st.text_area("Motion", key="motion")
         left, right = st.columns(2)
@@ -96,7 +117,7 @@ def main() -> None:
                 explicit_concepts=[line.strip() for line in concepts.splitlines() if line.strip()],
                 prep_rules=PrepRules(minutes=int(minutes), internet_allowed=internet),
             )
-            director = RoundDirector()
+            director = RoundDirector(settings)
             with st.spinner("Preparing your round…"):
                 output = director.plan(context) if preview else director.prepare(context)
             st.session_state["round_output"] = output
@@ -171,7 +192,7 @@ def main() -> None:
     st.subheader("Three case architectures")
     st.caption(
         "Generation sends selected archive excerpts, judge notes, and research to the "
-        "configured OpenAI model. It requires internet-permitted prep and explicit cloud setup."
+        "selected inference provider. It requires internet-permitted prep and explicit cloud setup."
     )
     preferences = st.text_area("Strategy preferences", key="strategy_preferences")
     if st.button("Generate three architectures", key="generate_strategies"):
@@ -180,13 +201,14 @@ def main() -> None:
         st.session_state.pop("evaluation_output", None)
         st.session_state.pop("architecture_choice", None)
         with st.spinner("Generating architectures…"):
-            st.session_state["strategy_output"] = RoundDirector().strategize(
+            st.session_state["strategy_output"] = RoundDirector(settings).strategize(
                 packet, preferences=preferences
             )
     strategy = st.session_state.get("strategy_output")
     if strategy is not None:
         st.caption(
-            f"Strategy status: {strategy.status}. Results reflect the last generation request."
+            f"Strategy status: {strategy.status} · {strategy.provider or 'legacy OpenAI'} · "
+            f"{strategy.model or 'unspecified model'}. Results reflect the last generation request."
         )
         for warning in strategy.warnings:
             st.warning(warning)
@@ -211,10 +233,16 @@ def main() -> None:
             st.session_state.pop("evaluation_output", None)
             st.session_state.pop("architecture_choice", None)
             with st.spinner("Critiquing, repairing, and scoring…"):
-                st.session_state["evaluation_output"] = RoundDirector().evaluate(packet, strategy)
+                st.session_state["evaluation_output"] = RoundDirector(settings).evaluate(
+                    packet, strategy
+                )
         evaluation = st.session_state.get("evaluation_output")
         if evaluation is not None:
-            st.caption(f"Evaluation: {evaluation.status} · Stage: {evaluation.stage}")
+            st.caption(
+                f"Evaluation: {evaluation.status} · Stage: {evaluation.stage} · "
+                f"{evaluation.provider or 'legacy OpenAI'} · "
+                f"{evaluation.model or 'unspecified model'}"
+            )
             for warning in evaluation.warnings:
                 st.warning(warning)
             for critique in evaluation.critiques:
@@ -281,7 +309,7 @@ def main() -> None:
                     if st.button("Write final case", key="write_case"):
                         st.session_state.pop("case_output", None)
                         with st.spinner("Writing and refining your case…"):
-                            st.session_state["case_output"] = RoundDirector().write_case(
+                            st.session_state["case_output"] = RoundDirector(settings).write_case(
                                 packet,
                                 strategy,
                                 evaluation,
@@ -293,6 +321,8 @@ def main() -> None:
                             st.warning(warning)
                         if final_case.status == "completed":
                             st.caption(
+                                f"{final_case.provider or 'legacy OpenAI'} · "
+                                f"{final_case.model or 'unspecified model'} · "
                                 f"Selected strategy: {final_case.selected_strategy_score}/100 · "
                                 f"{final_case.word_count}/{final_case.word_limit} words · "
                                 f"Estimated {final_case.estimated_seconds / 60:.1f} minutes "

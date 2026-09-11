@@ -128,7 +128,7 @@ def test_configuration_missing_does_not_call_network(settings, monkeypatch):
     def fail(*args):
         raise AssertionError("Network provider should not be constructed")
 
-    monkeypatch.setattr("debate_engine.agents.strategy.OpenAIStrategyProvider", fail)
+    monkeypatch.setattr("debate_engine.agents.strategy.create_provider", fail)
     assert StrategyAgent(settings).generate(packet(settings)).status == "not_configured"
 
 

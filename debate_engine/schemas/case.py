@@ -70,6 +70,7 @@ class CaseResult(StrictModel):
     selected_architecture_id: int | None = None
     selected_strategy_score: int | None = None
     model: str | None = None
+    provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
     prompt_version: str = "milestone-14-v1"
     speech_minutes: int = 0
     budget: SpeechBudget = Field(default_factory=SpeechBudget)

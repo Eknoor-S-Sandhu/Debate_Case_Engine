@@ -3,7 +3,7 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 14 — Case Writer and speech budgeting
+## Current status: Milestone 15 — Multi-provider inference
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -20,7 +20,8 @@ research. Milestone 12 generates three distinct, unranked case architectures
 from the packet and judge guidance. Milestone 13 critiques, repairs, and ranks
 those architectures using the 100-point rubric; you make the final choice.
 Milestone 14 expands your chosen strategy into a formatted case, checks the
-speech budget, and performs a final improvement pass.
+speech budget, and performs a final improvement pass. Milestone 15 supports
+OpenAI, Anthropic, and Gemini across those inference stages.
 
 ## Requirements
 
@@ -367,6 +368,20 @@ This requires the original packet and architecture exports plus the completed
 evaluation containing your explicit choice. It uses the same cloud settings and
 makes two or three model requests. Offline prep remains blocked. See
 [Milestone 14 formats, timing and limitations](docs/MILESTONE_14.md).
+
+## Choose an inference provider (Milestone 15)
+
+Strategy generation, evaluation, and case writing support **OpenAI, Anthropic,
+and Gemini**. Choose **Inference provider** in Round preparation or pass
+`--provider openai`, `--provider anthropic`, or `--provider gemini` to a generation
+command. Existing outputs retain their original provider/model labels.
+
+Configure the selected provider's `API_KEY`, `MODEL`, and `ALLOW_REMOTE` values
+under `DEBATE_ENGINE_OPENAI__...`, `DEBATE_ENGINE_ANTHROPIC__...`, or
+`DEBATE_ENGINE_GEMINI__...`. The default provider is set with
+`DEBATE_ENGINE_STRATEGY__PROVIDER`. Existing OpenAI-only configuration still works.
+There is no automatic fallback to another provider, and offline prep remains blocked.
+See [.env.example](.env.example) and [Milestone 15 setup and compatibility](docs/MILESTONE_15.md).
 
 ## Configuration
 

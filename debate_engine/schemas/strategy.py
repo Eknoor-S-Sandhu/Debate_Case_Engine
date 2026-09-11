@@ -78,6 +78,7 @@ class StrategyResult(StrictModel):
     warnings: list[str] = Field(default_factory=list)
     packet_fingerprint: str
     model: str | None = None
+    provider: Literal["openai", "anthropic", "gemini", "injected"] | None = None
     prompt_version: str = "milestone-12-v1"
     # Only the sources actually supplied to the model; supports later citation inspection.
     supplied_archive_ids: list[str] = Field(default_factory=list)

@@ -5,7 +5,11 @@ import json
 
 from debate_engine.agents.evaluation_prompt import RED_TEAM, REPAIR, SCORE
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
-from debate_engine.agents.strategy_provider import OpenAIStrategyProvider
+from debate_engine.agents.strategy_provider import (
+    create_provider,
+    inference_metadata,
+    inference_ready,
+)
 from debate_engine.config import Settings, get_settings
 from debate_engine.schemas import RoundType, Side
 from debate_engine.schemas.evaluation import (
@@ -20,7 +24,9 @@ from debate_engine.schemas.strategy import ArchitectureSet, StrategyResult
 
 
 def fingerprint(value) -> str:
-    return hashlib.sha256(value.model_dump_json().encode()).hexdigest()
+    # Provider metadata was absent in Milestones 12–14. Preserve their fingerprint bytes.
+    exclude = {"provider"} if hasattr(value, "provider") and value.provider is None else set()
+    return hashlib.sha256(value.model_dump_json(exclude=exclude).encode()).hexdigest()
 
 
 def require_all_ids(rows) -> None:
@@ -50,7 +56,7 @@ class EvaluationAgent:
             status="invalid_output",
             packet_fingerprint=fingerprint(packet),
             strategy_fingerprint=fingerprint(strategy),
-            model=self.settings.strategy.model,
+            **inference_metadata(self.settings, self.provider is not None),
         )
         if not packet.plan.round_input.prep_rules.internet_allowed:
             result.status = "disabled_by_prep_rules"
@@ -87,16 +93,13 @@ class EvaluationAgent:
             )
             return result
         config = self.settings.strategy
-        if self.provider is None and (
-            not config.allow_remote
-            or config.api_key is None
-            or not config.api_key.get_secret_value().strip()
-            or not config.model
-        ):
+        if self.provider is None and not inference_ready(self.settings):
             result.status = "not_configured"
-            result.warnings.append("Configure strategy ALLOW_REMOTE, API_KEY, and MODEL.")
+            result.warnings.append(
+                "Configure the selected provider API_KEY, MODEL, and remote access."
+            )
             return result
-        provider = self.provider or OpenAIStrategyProvider(self.settings)
+        provider = self.provider or create_provider(self.settings)
         originals = {
             i: architecture for i, architecture in enumerate(strategy.architectures, start=1)
         }

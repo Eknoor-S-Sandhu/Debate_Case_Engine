@@ -9,7 +9,11 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from debate_engine.agents.strategy_prompt import STRATEGY_INSTRUCTIONS
-from debate_engine.agents.strategy_provider import OpenAIStrategyProvider
+from debate_engine.agents.strategy_provider import (
+    create_provider,
+    inference_metadata,
+    inference_ready,
+)
 from debate_engine.config import Settings, get_settings
 from debate_engine.retrieval.queries import infer_query_intents
 from debate_engine.retrieval.scoring import candidate_is_eligible, is_kritik_chunk, is_theory_chunk
@@ -167,7 +171,7 @@ class StrategyAgent:
         result = StrategyResult(
             status="not_configured",
             packet_fingerprint=fingerprint,
-            model=self.settings.strategy.model,
+            **inference_metadata(self.settings, self.provider is not None),
         )
         # All providers honor the offline rule. Local generation can be added explicitly later.
         if not packet.plan.round_input.prep_rules.internet_allowed:
@@ -177,14 +181,9 @@ class StrategyAgent:
             ]
             return result
         config = self.settings.strategy
-        if self.provider is None and (
-            not config.allow_remote
-            or config.api_key is None
-            or not config.api_key.get_secret_value().strip()
-            or not config.model
-        ):
+        if self.provider is None and not inference_ready(self.settings):
             result.warnings = [
-                "Configure strategy ALLOW_REMOTE, API_KEY, and MODEL before generation."
+                "Configure the selected provider API_KEY, MODEL, and remote access."
             ]
             return result
         request = packet.plan.retrieval_request
@@ -212,7 +211,7 @@ class StrategyAgent:
             result.status = "invalid_output"
             result.warnings.append(str(exc))
             return result
-        provider = self.provider or OpenAIStrategyProvider(self.settings)
+        provider = self.provider or create_provider(self.settings)
         try:
             raw = provider.generate(
                 STRATEGY_INSTRUCTIONS, encoded, ArchitectureSet.model_json_schema()
