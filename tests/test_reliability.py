@@ -119,6 +119,8 @@ def test_representative_round_contracts(tmp_path, scenario, preserve_selection):
     assert row["selection_preserved"] is preserve_selection
     assert row["request_count"] == 6
     assert row["quality_review"] == "pending_human_review"
+    assert row["research_source_count"] == 0
+    assert row["archive_item_count"] == len(knowledge.items)
 
 
 def test_benchmark_dry_run_never_loads_settings(monkeypatch, tmp_path):
@@ -127,6 +129,33 @@ def test_benchmark_dry_run_never_loads_settings(monkeypatch, tmp_path):
     )
     result = CliRunner().invoke(app, ["--output", str(tmp_path / "unused")])
     assert result.exit_code == 0 and "12 rounds" in result.output
+    assert not (tmp_path / "unused").exists()
+
+
+def test_benchmark_scenario_selection(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "scripts.benchmark_v1.Settings", lambda: pytest.fail("No setup in dry run")
+    )
+    result = CliRunner().invoke(app, [
+        "--output", str(tmp_path / "unused"),
+        "--scenario", "social-neg", "--scenario", "transit-opp",
+        "--scenario", "transit-opp", "--limit", "1",
+    ])
+    assert result.exit_code == 0
+    assert "1 rounds" in result.output
+    assert "Scenarios: transit-opp" in result.output
+    assert "social-neg" not in result.output
+
+
+def test_benchmark_unknown_scenario_rejected_before_live_setup(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "scripts.benchmark_v1.Settings", lambda: pytest.fail("No setup for invalid selection")
+    )
+    result = CliRunner().invoke(app, [
+        "--output", str(tmp_path / "unused"), "--scenario", "typo", "--live",
+    ])
+    assert result.exit_code == 2
+    assert "Unknown scenario IDs" in result.output
     assert not (tmp_path / "unused").exists()
 
 

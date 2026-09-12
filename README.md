@@ -404,6 +404,12 @@ and saves private results locally. The recorded 12-round live run produced no fi
 cases because of service errors, a timeout and rejected output; V1 live acceptance
 remains pending. See [Milestone 16 scope and live-test evidence](docs/MILESTONE_16.md).
 
+For validation after the successful Codex CLI round, see the
+[V1 quality review and validation log](docs/V1_VALIDATION.md). Use repeated
+`--scenario` options to run a subset, for example
+`--scenario transit-opp --scenario privacy-aff --scenario social-neg`.
+The dry run lists selected IDs; `--limit` applies after filtering.
+
 ## Configuration
 
 Settings live in `debate_engine/config.py` and can be overridden with

@@ -91,6 +91,8 @@ def render_case(case, packet):
         lines.append(f"**{label}**: {case.weighing_mechanism}")
 
     def section(label, points):
+        if not points:
+            return
         lines.append(f"\n**{label}:**")
         lines.extend(f"{i}. **{p.tagline}:** {p.text}" for i, p in enumerate(points, 1))
 
@@ -98,7 +100,8 @@ def render_case(case, packet):
     section("Definitions", case.definitions)
     if policy:
         section("Inherency", case.inherency)
-        lines.append("\n**Plan text/CP**: " + (case.plan.action if case.plan else ""))
+    if policy and case.plan:
+        lines.append("\n**Plan text/CP**: " + case.plan.action)
         for label, field in [
             ("AoA", "actor"),
             ("AoE", "enforcement_actor"),
@@ -106,7 +109,8 @@ def render_case(case, packet):
             ("Timeframe", "timeframe"),
             ("Enforcement", "enforcement"),
         ]:
-            lines.append(f"{label}: {getattr(case.plan, field) if case.plan else ''}")
+            lines.append(f"{label}: {getattr(case.plan, field)}")
+    if policy:
         section("Solvency", case.solvency)
     for i, c in enumerate(case.contentions, 1):
         label = ("AD" if request.side in {Side.GOV, Side.AFF} else "DA") if policy else "Contention"

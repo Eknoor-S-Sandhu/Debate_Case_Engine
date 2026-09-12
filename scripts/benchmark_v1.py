@@ -33,6 +33,9 @@ def run_round(director, scenario, artifact_dir=None):
             prep_rules={"internet_allowed": True},
         )
         packet = director.prepare(context)
+        row["research_status"] = packet.research.status if packet.research else "not_run"
+        row["research_source_count"] = len(packet.research.sources) if packet.research else 0
+        row["archive_item_count"] = len(packet.items)
         strategy = director.strategize(packet)
         results = [("strategy", strategy)]
         if strategy.status == "completed":
@@ -83,13 +86,26 @@ def benchmark(
     output: Annotated[Path, typer.Option(help="New output directory; contains private artifacts.")],
     provider: ProviderName = ProviderName.CODEX_CLI,
     model: str | None = None,
+    scenario: Annotated[
+        list[str] | None,
+        typer.Option(help="Scenario ID; repeat to select several, in corpus order."),
+    ] = None,
     limit: Annotated[int, typer.Option(min=1, max=12)] = 12,
     timeout_seconds: Annotated[float, typer.Option(min=1, max=300)] = 120,
     live: Annotated[bool, typer.Option(help="Allow real provider requests and charges.")] = False,
 ):
-    scenarios = json.loads(CORPUS.read_text())[:limit]
+    scenarios = json.loads(CORPUS.read_text())
+    if scenario:
+        unknown = set(scenario) - {s["id"] for s in scenarios}
+        if unknown:
+            raise typer.BadParameter(
+                f"Unknown scenario IDs: {', '.join(sorted(unknown))}", param_hint="--scenario"
+            )
+        scenarios = [s for s in scenarios if s["id"] in scenario]
+    scenarios = scenarios[:limit]
     if not live:
         typer.echo(f"Dry run: {len(scenarios)} rounds planned; no model or archive access.")
+        typer.echo("Scenarios: " + ", ".join(s["id"] for s in scenarios))
         return
     settings = Settings()
     settings.strategy.provider = provider

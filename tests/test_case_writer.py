@@ -138,6 +138,20 @@ def test_case_uses_user_choice_correct_budget_and_two_passes(tmp_path, side, min
                 assert node["additionalProperties"] is False
 
 
+def test_status_quo_opposition_has_no_empty_plan_or_optional_sections(tmp_path):
+    settings, knowledge, strategy, evaluation = inputs(tmp_path, side="opp")
+    final = case_output()
+    final["plan"] = None
+    result = CaseWriter(settings, provider=CaseProvider([final, final])).write(
+        knowledge, strategy, evaluation
+    )
+    assert result.status == "completed"
+    for heading in ("**Definitions", "**Inherency", "**Solvency", "**Plan text", "AoA:"):
+        assert heading not in result.markdown
+    assert "**Observations:**" in result.markdown
+    assert "**DA 1:" in result.markdown
+
+
 @pytest.mark.parametrize("kind", ["value", "fact"])
 def test_exact_nonpolicy_format(tmp_path, kind):
     settings, knowledge, strategy, evaluation = inputs(tmp_path, kind=kind)
