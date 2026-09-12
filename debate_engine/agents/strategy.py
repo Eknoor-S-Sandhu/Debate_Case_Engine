@@ -233,12 +233,12 @@ class StrategyAgent:
         try:
             output = ArchitectureSet.model_validate(raw)
             validate_architectures(output, context)
-        except (ValueError, ValidationError):
+        except (ValueError, ValidationError) as exc:
             invalid_output(result)
             result.status = "invalid_output"
             result.warnings.append(
                 "Model output failed structure, source, or diversity validation. "
-                "No architectures were accepted."
+                f"Reason: {exc}"
             )
             return result
         result.status = "completed"

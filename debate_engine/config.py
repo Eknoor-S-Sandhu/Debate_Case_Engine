@@ -259,7 +259,7 @@ class StrategySettings(BaseModel):
     allow_remote: bool = False
     api_key: SecretStr | None = None
     model: str | None = Field(default=None, min_length=1)
-    timeout_seconds: float = Field(default=60.0, gt=0.0, le=120.0)
+    timeout_seconds: float = Field(default=120.0, gt=0.0, le=600.0)
     max_output_tokens: int = Field(default=10000, ge=1000, le=20000)
     max_input_characters: int = Field(default=120000, ge=1000, le=250000)
     max_archive_chunks: int = Field(default=24, ge=1, le=40)
