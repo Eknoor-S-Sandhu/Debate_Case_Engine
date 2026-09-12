@@ -84,7 +84,7 @@ def benchmark(
     provider: ProviderName = ProviderName.CODEX_CLI,
     model: str | None = None,
     limit: Annotated[int, typer.Option(min=1, max=12)] = 12,
-    timeout_seconds: Annotated[float, typer.Option(min=1, max=120)] = 60,
+    timeout_seconds: Annotated[float, typer.Option(min=1, max=300)] = 120,
     live: Annotated[bool, typer.Option(help="Allow real provider requests and charges.")] = False,
 ):
     scenarios = json.loads(CORPUS.read_text())[:limit]
