@@ -180,6 +180,18 @@ def test_invalid_output_never_becomes_success(settings, mutation):
     assert not result.architectures
 
 
+def test_schema_failure_does_not_export_rejected_private_content(settings):
+    value = output()
+    contention = value["architectures"][0]["contentions"][0]
+    contention["claim"] = "PRIVATE_REJECTED_ARCHIVE_CONTENT"
+    contention["basis"] = "mixed"
+    result = StrategyAgent(settings, provider=Provider(value)).generate(packet(settings))
+    assert result.status == "invalid_output"
+    assert result.inference_calls[-1].error_code == "validation"
+    assert "PRIVATE_REJECTED_ARCHIVE_CONTENT" not in result.model_dump_json()
+    assert "input_value" not in result.model_dump_json()
+
+
 def add_source(knowledge, *, text="Exact source excerpt.", **metadata):
     chunk = DebateChunk(
         chunk_id="archive1",

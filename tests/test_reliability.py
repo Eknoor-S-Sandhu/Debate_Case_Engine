@@ -159,6 +159,17 @@ def test_benchmark_unknown_scenario_rejected_before_live_setup(monkeypatch, tmp_
     assert not (tmp_path / "unused").exists()
 
 
+@pytest.mark.parametrize("timeout,exit_code", [(600, 0), (601, 2)])
+def test_benchmark_timeout_matches_provider_bound(monkeypatch, tmp_path, timeout, exit_code):
+    monkeypatch.setattr(
+        "scripts.benchmark_v1.Settings", lambda: pytest.fail("No setup in dry run")
+    )
+    result = CliRunner().invoke(app, [
+        "--output", str(tmp_path / "unused"), "--timeout-seconds", str(timeout),
+    ])
+    assert result.exit_code == exit_code
+
+
 @pytest.mark.parametrize(
     "failure",
     json.loads(

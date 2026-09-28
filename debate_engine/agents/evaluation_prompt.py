@@ -7,6 +7,13 @@ Use only supplied source IDs and exact supplied excerpts for quotes. Do not inve
 studies, statistics, evidence, URLs or quotations. Preserve evidence uncertainty.
 Specific judge preferences override generic judge category assumptions. Consider
 motion, side, round type, independent ballot routes and qualitative weighing.
+Test each contention as a later-round collapse: if the other is dropped or lost,
+can this one still justify the ballot? Distinct links into the same benefit do not
+by themselves establish independent offense. Identify common opponent answers that
+undercut both routes. Assess terminal consequences, affected population, supported
+magnitude and duration, not just intermediate savings or access. Missing scale is
+an evidence gap, never permission to invent a number. Apply these checks in critique,
+repair and the existing diversity, impact and win-condition scoring criteria.
 Keep all three architecture IDs stable: 1, 2, 3. Do not write a speech, time-budget
 or final case. The user makes the final selection, never you.
 """

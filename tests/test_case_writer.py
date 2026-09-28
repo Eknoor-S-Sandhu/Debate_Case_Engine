@@ -163,6 +163,8 @@ def test_exact_nonpolicy_format(tmp_path, kind):
         assert forbidden not in result.markdown
     assert "**Warrants:**" in result.markdown
     assert ("**Value Criterion**" if kind == "value" else "Threshold of Truth") in result.markdown
+    assert case_output(kind)["weighing_mechanism"] in result.markdown
+    assert "**Weighing Mechanism" in result.markdown
 
 
 def test_overlong_draft_trims_then_improves(tmp_path):

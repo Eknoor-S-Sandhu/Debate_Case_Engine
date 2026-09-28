@@ -5,7 +5,7 @@ Return exactly THREE distinct, condensed case architectures in the requested JSO
 Do not rank or select them. Do not perform a Red Team, repair pass, or write a final case.
 
 BASIS RULES:
-- Use "archive_adaptation" only when the contention uses archive_chunk_ids and no research_source_ids.
+- Use "archive_adaptation" only with archive_chunk_ids and no research_source_ids.
 - Use "research_informed" only when it uses research_source_ids and no archive_chunk_ids.
 - Use "mixed" only when BOTH archive_chunk_ids and research_source_ids are non-empty.
 - Use "new_reasoning" only when it uses no source IDs or quotes.
@@ -22,6 +22,24 @@ Prioritize strong uniqueness, causal mechanisms, terminal impacts, qualitative w
 embedded preempts, and strategic rather than cosmetic novelty. Distinguish architectures
 through their contention mix, central mechanism, framing, or route to the ballot. Renaming
 or reordering the same arguments is not sufficient. Explain each architecture's difference.
+
+DESIGN FOR LATER-ROUND COLLAPSES: each contention needs its own complete reason to
+vote for the side if the debater drops or loses the other contention. Explain that
+standalone ballot story in its impacts/weighing and identify shared vulnerabilities.
+Different links into substantially the same benefit are not sufficient diversity.
+Test whether the same opponent answer defeats both routes, and prefer substantively
+different offense when supported. Shared implementation assumptions may remain;
+acknowledge them instead of claiming complete independence.
+For free-public-transport government, include a poverty/household-welfare route and
+an environmental route together in at least one proposed architecture, reflecting
+the user's preference. Each needs its own warranted chain and terminal impact.
+Environmental offense must establish mode shift from cars, resulting net emissions
+or pollution changes, and downstream harm reduction; more transit riders alone
+proves none of these. Flag missing evidence rather than manufacturing a second route.
+Keep the other proposals meaningfully distinct and leave final choice to the user.
+Impact out each route: final harm/benefit, affected population, magnitude, severity
+and duration. Quantify people and per-person changes only where supplied evidence
+supports them; otherwise identify the exact missing quantities for research.
 
 For POLICY, each substantive contention must include uniqueness, link, and internal_link,
 as well as warrants, terminal impacts, and preempts. For VALUE, provide a value and criterion

@@ -1,9 +1,16 @@
 # V1 live validation after Milestone 17
 
 V1 acceptance remains pending. A completed pipeline establishes transport and
-structural validity; it does not establish competitive quality. These are agent
-reviews of saved artifacts, not independent human ratings or tournament results.
+structural validity; it does not establish competitive quality. The quality findings below are agent reviews of saved artifacts unless explicitly
+labeled as human feedback; they are not independent human ratings or tournament
+results.
 Private packets and full case text remain under gitignored `data/parsed/`.
+
+Current checkpoint (2026-09-12): three completed live cases across policy and
+value. The expanded batch completed two of three rounds; its fact round timed
+out at critique. All three successful saved cases pass source, structure and
+handoff-fingerprint revalidation. No completed fact case or research-enabled
+live case has yet been established in this validation series.
 
 ## First successful round
 
@@ -49,7 +56,75 @@ immediate mechanisms but share exposure to financing, service quality and effect
 targeting objections. The model's 77/100 score is not an independent quality rating.
 
 Disposition: structurally successful, evidence-limited practice draft; not yet a
-competition-ready affirmative. Human review and spoken rehearsal remain pending.
+competition-ready affirmative. Initial human feedback is recorded below; full
+strategic review and spoken rehearsal remain pending.
+
+
+### Human feedback — 2026-09-12
+
+Reviewer: user. Artifact: `data/parsed/m18-codex-test-07/transit-gov/case.md`.
+This records the user's requested changes; it does not mark them as implemented.
+No overall good/bad verdict, numerical score, or aloud timing was supplied.
+
+1. **Highest priority: make the language much simpler.** The user finds the case
+   hard to read and needs clear, concise, simple language to understand and follow
+   it. This applies throughout the case, not just to the opening or plan.
+2. **Give the weighing mechanism an explicit name**, such as "Net Benefits" or
+   "Structural Violence." If it is not Net Benefits or something equivalent,
+   include warrants explaining why the judge should prefer it over Net Benefits
+   when necessary.
+3. **Remove the roadmap of the advantages.** The user does not need it.
+4. **Use simple plan-text defaults.** Default to the resolution with "will"
+   instead of "should," adding specifications when strategically useful. For
+   this motion: "The government will make public transport free."
+   - Funding: "Normal ways and means."
+   - Timeframe: "ASAP."
+   - Enforcement: "Normal ways and means."
+
+Status: feedback recorded; case revision and engine changes are pending.
+
+### Engine response to human feedback — agent record, 2026-09-12
+
+The human feedback above is preserved as originally recorded. The following is
+an implementation/validation record by the agent, not further human feedback or
+human approval.
+
+Case-writing prompt version `milestone-14-v2-human-feedback` applies the user's
+requirements to drafting, trimming and final improvement:
+
+- Makes clear, concise, simple language the highest writing priority throughout
+  the speech, including causal steps, weighing and preempts. Requests short,
+  direct sentences and concrete examples while retaining necessary uncertainty.
+- Requires an explicit framework name, with a plain explanation of the comparison.
+  Non-Net-Benefits frameworks need a reason for preference when that choice needs
+  justification. Value criteria must not assume the motion's conclusion.
+- Prohibits an advantage roadmap, including one disguised as observations. Keeps
+  substantive observations when necessary and preserves required value/fact scope.
+- Defaults the transit plan to "The government will make public transport free."
+  Funding/enforcement default to "Normal ways and means." and timeframe to "ASAP."
+  Additional detail must serve the selected mechanism, motion or a concrete objection.
+  These plan conventions do not establish fiscal or practical feasibility.
+
+The renderer now displays the weighing mechanism for value cases as well as
+policy/fact cases; it previously hid this field in value exports. Empty sections
+remain omitted. No heuristic deletes model-generated prose or silently replaces
+its plan: roadmap removal and simple plan choices are writing instructions, whose
+actual compliance must be checked in the live artifact.
+
+Checks before the live run: all 591 tests passed; the focused case/reliability/CLI
+suite passed 89 tests; changed case-writing files passed Ruff and whitespace checks.
+The existing full-project long-line warning noted below is unrelated to this edit.
+
+The user explicitly authorized one new `transit-gov` benchmark through the
+configured Codex CLI provider with relevant local material. New output directory:
+`data/parsed/v1-transit-gov-human-feedback-01`. Request deadline: 600 seconds.
+Research was still unconfigured at launch. Original artifact fingerprints were
+saved for a preservation check. This reruns upstream generation as requested,
+so differences in the selected architecture can also affect the comparison;
+it is not a controlled comparison of only the case-writing prompt.
+
+Live result and agent comparison: pending completion. Human review of the new
+artifact and V1 acceptance remain pending.
 
 ## Repeatable targeted runs
 
@@ -139,6 +214,22 @@ is less damaging to its explicit normative reasoning than to the transit cases,
 but does not support its contingent behavioral claims. The model's 91/100 score
 must not be treated as an externally validated quality result.
 
+### Social-media negation — fact, flow judge
+
+Strategy completed in 112.459 seconds. Red Team then timed out at 300.055
+seconds, leaving no accepted critique or final case. Round latency was 413.039
+seconds. This is a timeout failure, not a rejected argument or a quality rating.
+The saved accepted strategy and packet permit a recovery beginning at evaluation.
+
+The entire expanded batch made 15 recorded inference calls: 14 received responses
+and one timeout. Its two completions are useful breadth evidence, not a reliable
+estimate of long-run success rates. No later run overwrites this failure.
+
+A proposed recovery uses the saved fact packet and strategies, fixed architecture
+1, a 600-second request limit, and a new output directory. Automatic approval
+review rejected execution pending explicit permission to send that saved private
+payload through ChatGPT-authenticated Codex CLI. No recovery calls were made.
+
 ## Validation-driven changes
 
 - Added targeted scenario selection to avoid repeating unrelated rounds.
@@ -146,9 +237,19 @@ must not be treated as an externally validated quality result.
   count, making missing research visible alongside completion status.
 - Case rendering omits empty optional sections and blank plan fields for
   status-quo opposition. Saved historical exports are preserved unchanged.
+- The benchmark accepts request deadlines up to 600 seconds, matching existing
+  provider settings. Its default remains 120 seconds; this does not establish
+  that longer waits fix the observed timeout or meet real prep-time requirements.
+- Removed temporary raw exception output from rejected strategies, restoring
+  safe diagnostics without changing validation rules. A regression test checks
+  that rejected private content is not included in exported errors.
 
-No generation prompts, provenance checks, provider defaults or later milestone
-features were changed in this validation pass.
+The earlier validation pass did not change generation prompts, provenance checks,
+provider defaults or later milestone features. The subsequent human-feedback
+revision above updates case-writing instructions and their exported version.
+
+Validation: 591 tests pass. Changed Python files pass Ruff and whitespace checks.
+Full-project Ruff still reports a pre-existing long line in `strategy_prompt.py:8`.
 
 ## Remaining acceptance work
 
@@ -159,3 +260,29 @@ features were changed in this validation pass.
   available, and inspect whether its supplied evidence resolves decisive gaps.
 - Compare a few matching scenarios with another configured provider when available.
 - Obtain human strategic review and aloud timing before declaring usable case quality.
+
+The user selected research-enabled validation as the next direction. Tavily
+configuration is pending in the local environment; do not ask for keys in chat.
+The next milestone remains V1 readiness, not topic/side selection or live refutation.
+
+
+## Follow-up human feedback — 2026-09-27
+
+The user reviewed the revised transit-government case and requested:
+- Use exactly "Net Benefits" without explanation when that is the framework.
+  Other frameworks need a justification for preference over Net Benefits.
+- Develop terminal impacts, including the affected population, supported magnitude
+  of benefit and why it matters, rather than stopping at savings or opportunity.
+- Design contentions for independent later-round collapses. For this motion the
+  preferred mix is poverty and environment, each with its own ballot story, rather
+  than two closely related affordability routes.
+
+Engine instructions now apply these preferences to writing, strategy construction,
+critique, repair and scoring as relevant. Quantities require supplied evidence;
+missing quantities remain research needs. No new live case has been generated with
+these instructions and human acceptance remains pending.
+
+The earlier feedback rerun did complete: its saved report records 817/975 words,
+seven requests, 693.538 seconds, preserved selection, and no research sources
+(`missing_credentials`). This supersedes the pending-run note above, not the
+pending human acceptance decision. The user has a Tavily key to configure locally.

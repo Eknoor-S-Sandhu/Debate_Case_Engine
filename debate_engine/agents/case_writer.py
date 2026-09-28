@@ -3,7 +3,12 @@
 import json
 import re
 
-from debate_engine.agents.case_prompt import DRAFT_CASE, IMPROVE_CASE, TRIM_CASE
+from debate_engine.agents.case_prompt import (
+    CASE_PROMPT_VERSION,
+    DRAFT_CASE,
+    IMPROVE_CASE,
+    TRIM_CASE,
+)
 from debate_engine.agents.diagnostics import invalid_output, run_inference
 from debate_engine.agents.evaluation import fingerprint
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
@@ -86,9 +91,12 @@ def render_case(case, packet):
     ]
     if request.round_type == RoundType.VALUE:
         lines += [f"**Value**: {case.value}", f"**Value Criterion**: {case.criterion}"]
-    else:
-        label = "Weighing Mechanism" if policy else "Weighing Mechanism / Threshold of Truth"
-        lines.append(f"**{label}**: {case.weighing_mechanism}")
+    label = (
+        "Weighing Mechanism / Threshold of Truth"
+        if request.round_type == RoundType.FACT
+        else "Weighing Mechanism"
+    )
+    lines.append(f"**{label}**: {case.weighing_mechanism}")
 
     def section(label, points):
         if not points:
@@ -174,6 +182,7 @@ class CaseWriter:
             strategy_fingerprint=fingerprint(strategy),
             evaluation_fingerprint=fingerprint(evaluation),
             budget=budget,
+            prompt_version=CASE_PROMPT_VERSION,
             **inference_metadata(self.settings, self.provider is not None),
         )
         if not packet.plan.round_input.prep_rules.internet_allowed:

@@ -91,7 +91,7 @@ def benchmark(
         typer.Option(help="Scenario ID; repeat to select several, in corpus order."),
     ] = None,
     limit: Annotated[int, typer.Option(min=1, max=12)] = 12,
-    timeout_seconds: Annotated[float, typer.Option(min=1, max=300)] = 120,
+    timeout_seconds: Annotated[float, typer.Option(min=1, max=600)] = 120,
     live: Annotated[bool, typer.Option(help="Allow real provider requests and charges.")] = False,
 ):
     scenarios = json.loads(CORPUS.read_text())
