@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from debate_engine.agents.judge import JudgeAgent
@@ -26,6 +27,7 @@ class RoundDirector:
     ) -> None:
         self.settings = settings or get_settings()
         self.research_provider = research_provider
+        self.preparation_timings: dict[str, float] = {}
 
     def plan(self, round_input: RoundInput) -> RoundPlan:
         # Copy input so planning never mutates caller-owned context.
@@ -55,6 +57,13 @@ class RoundDirector:
                 judge.warnings.append(
                     f"Explicit {field}=true overrides the judge's exclusion preference."
                 )
+        if context.prep_rules.profile == "nypdl":
+            request.include_theory = False
+            request.include_kritiks = False
+            judge.warnings = [w for w in judge.warnings if "overrides" not in w]
+            notes.append(
+                "NYPDL: theory, Ks and tricks excluded; motion-focused frameworks allowed."
+            )
         notes.extend(judge.warnings)
         if request.side is None:
             notes.append("No side supplied; retrieval remains side-neutral.")
@@ -96,10 +105,15 @@ class RoundDirector:
         from debate_engine.agents.knowledge import KnowledgeAgent
         from debate_engine.agents.research import ResearchAgent
 
+        self.preparation_timings = {}
+        start = perf_counter()
         packet = KnowledgeAgent(self.settings, database=database).retrieve(self.plan(round_input))
+        self.preparation_timings["retrieval"] = round(perf_counter() - start, 3)
+        start = perf_counter()
         packet.research = ResearchAgent(self.settings, provider=self.research_provider).run(
             packet.plan.round_input, knowledge=packet
         )
+        self.preparation_timings["research"] = round(perf_counter() - start, 3)
         packet.plan.research_status = packet.research.status
         return packet
 

@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import Protocol
 
+from debate_engine.agents.round_rules import prohibited_archive
 from debate_engine.config import Settings, get_settings
 from debate_engine.retrieval import HierarchicalRetriever
 from debate_engine.retrieval.embeddings import EmbeddingService
@@ -173,6 +174,13 @@ class KnowledgeAgent:
             )
             if not eligible:
                 warnings.append(f"Omitted {candidate.chunk_id}: {reason}.")
+                continue
+            if plan.round_input.prep_rules.profile == "nypdl" and prohibited_archive(
+                candidate.chunk
+            ):
+                warnings.append(
+                    f"Omitted {candidate.chunk_id}: NYPDL excludes theory, Ks and tricks."
+                )
                 continue
             category = categorize(candidate)
             # Nested context is not independently ranked or eligibility checked.

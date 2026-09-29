@@ -3,7 +3,12 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
-## Current status: Milestone 17 — Codex CLI inference
+## Current status: NYPDL preparation and research validation
+
+The Streamlit workflow now separates setup, sources, strategy selection and the final
+speech. Fifteen-minute no-web rounds use the NYPDL profile, with independent cloud
+model permission. See [NYPDL setup and compatibility](docs/NYPDL_SETUP.md).
+V1 quality acceptance and speed optimization remain pending human review.
 
 Phase 1 builds the **knowledge and retrieval foundation** - ingesting a debate
 library, chunking it into arguments, and searching it semantically.
@@ -328,7 +333,7 @@ Configure a provider using the setup below. Codex CLI is the primary option:
 run `codex login` with ChatGPT and enable `DEBATE_ENGINE_CODEX_CLI__ALLOW_REMOTE`.
 Generation uses the selected provider's allowance and sends selected archive
 excerpts, judge notes, research excerpts and strategy preferences to that provider.
-It requires internet-permitted prep, a concrete side, and a policy, value, or fact
+It requires cloud-inference permission, a concrete side, and a policy, value, or fact
 round type. Missing configuration makes no generation request.
 
 Results include two or three developed contentions per architecture, source IDs,
@@ -367,7 +372,7 @@ budget is shown. Download Markdown or structured JSON.
 
 This requires the original packet and architecture exports plus the completed
 evaluation containing your explicit choice. It uses the same cloud settings and
-makes two or three model requests. Offline prep remains blocked. See
+makes two or three model requests. Legacy offline inputs remain blocked unless cloud inference is explicitly enabled. See
 [Milestone 14 formats, timing and limitations](docs/MILESTONE_14.md).
 
 ## Choose an inference provider (Milestones 15 and 17)
@@ -386,7 +391,8 @@ For API providers, configure `API_KEY`, `MODEL`, and `ALLOW_REMOTE` values
 under `DEBATE_ENGINE_OPENAI__...`, `DEBATE_ENGINE_ANTHROPIC__...`, or
 `DEBATE_ENGINE_GEMINI__...`. The default provider is set with
 `DEBATE_ENGINE_STRATEGY__PROVIDER`. Existing OpenAI-only configuration still works.
-There is no automatic fallback to another provider, and offline prep remains blocked.
+There is no automatic fallback to another provider. Web research and cloud inference
+permissions are independent; legacy offline inputs remain blocked by default.
 See [.env.example](.env.example) and [Milestone 15 setup and compatibility](docs/MILESTONE_15.md).
 
 ## Validate reliability (Milestone 16)

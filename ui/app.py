@@ -60,6 +60,7 @@ def main() -> None:
     st.set_page_config(page_title="Debate retrieval tester", page_icon="📚", layout="wide")
     st.title("Debate retrieval tester")
     st.caption("Search your debate library for full arguments and reusable submodules.")
+    st.page_link("pages/1_Round_preparation.py", label="Prepare a round →")
     settings = get_settings()
     with st.form("retrieval"):
         motion = st.text_area("Motion or search query", key="motion")

@@ -1,15 +1,19 @@
 """Round preparation with judge adaptation and permission-gated research."""
 
+from time import monotonic
+
 import streamlit as st
 
 from debate_engine.agents import RoundDirector
-from debate_engine.agents.evaluation import select_architecture
+from debate_engine.agents.case_writer import evidence_notes, render_case
+from debate_engine.agents.evaluation import EvaluationAgent, select_architecture
 from debate_engine.agents.strategy_provider import inference_ready, provider_settings
 from debate_engine.config import ProviderName, get_settings
 from debate_engine.schemas import JudgeCategory, RoundType, Side
 from debate_engine.schemas.case import SpeechBudget
 from debate_engine.schemas.evaluation import RUBRIC
 from debate_engine.schemas.rounds import PrepRules, RoundInput
+from ui.workflow import invalidate, load_checkpoint, remaining_seconds, timed, unresolved_findings
 
 
 def render_diagnostics(result):
@@ -43,6 +47,39 @@ def render_architecture(architecture) -> None:
         st.text(contention.title)
         st.text(contention.claim)
         st.caption(f"Basis: {contention.basis}")
+        if contention.construction is not None:
+            analysis = contention.construction
+            st.caption("Construction analysis")
+            if analysis.status_quo_barrier:
+                st.text(f"Status-quo barrier: {analysis.status_quo_barrier}")
+            st.text(f"Proposed change or comparison: {analysis.proposed_change}")
+            for number, route in enumerate(analysis.causal_routes, 1):
+                st.text(f"Route {number}: {route.explanation}")
+                st.caption(f"Supporting warrant numbers: {route.warrant_numbers}")
+                st.caption(
+                    f"Archive: {route.archive_chunk_ids}; research: {route.research_source_ids}"
+                )
+                for item in route.assumptions:
+                    st.text(f"Assumption: {item}")
+                for item in route.dependencies:
+                    st.text(f"Dependency: {item}")
+            for outcome in analysis.terminal_outcomes:
+                st.text(f"Terminal outcome: {outcome.consequence}")
+                for field in (
+                    "problem_population",
+                    "reachable_population",
+                    "attributable_change",
+                    "severity",
+                    "duration",
+                ):
+                    st.text(
+                        f"{field.replace('_', ' ').title()}: {getattr(outcome, field) or 'Unknown'}"
+                    )
+                for gap in outcome.evidence_gaps:
+                    st.text(f"Evidence gap: {gap}")
+            for dependency in analysis.shared_dependencies:
+                st.text(f"Shared dependency: {dependency}")
+            st.text(f"Surviving ballot argument: {analysis.surviving_ballot_argument}")
         for label, text in [
             ("Uniqueness", contention.uniqueness),
             ("Link", contention.link),
@@ -73,322 +110,514 @@ def render_architecture(architecture) -> None:
         st.json(architecture.model_dump(mode="json"))
 
 
-def main() -> None:
-    st.set_page_config(page_title="Round preparation", page_icon="📚", layout="wide")
-    st.title("Round preparation")
-    st.caption("Prepare archive material, judge guidance, and research for your round.")
-    settings = get_settings().model_copy(deep=True)
-    providers = list(ProviderName)
-    provider = st.selectbox(
-        "Inference provider",
-        providers,
-        index=providers.index(settings.strategy.provider),
-        key="inference_provider",
-        format_func=lambda p: {"codex_cli": "Codex CLI (primary)", "gemini": "Gemini (backup)"}.get(
-            p, p.value.title()
-        ),
-    )
-    settings.strategy.provider = provider
-    selected_config = provider_settings(settings)
-    model_label = selected_config.model or (
-        "CLI default" if provider == ProviderName.CODEX_CLI else "not configured"
-    )
-    st.caption(
-        f"Next generation request: {provider.value} · "
-        f"Model: {model_label}. "
-        "Selected archive excerpts and judge notes are sent to this provider."
-    )
-    if provider == ProviderName.CODEX_CLI:
-        st.caption(
-            "Uses your Codex ChatGPT login and allowance. "
-            "Gemini remains available as a manual backup."
-        )
-    if not inference_ready(settings):
-        st.info(
-            "Install Codex CLI, sign in with ChatGPT, and enable remote access."
-            if provider == ProviderName.CODEX_CLI
-            else "Configure this provider's API key, model and remote access."
-        )
-    with st.form("round"):
-        motion = st.text_area("Motion", key="motion")
-        left, right = st.columns(2)
-        with left:
-            side = st.selectbox("Side", [None, *Side], key="side")
-            round_type = st.selectbox("Round type", [None, *RoundType], key="round_type")
-            judge = st.selectbox("Judge category", [None, *JudgeCategory], key="judge")
-        with right:
-            minutes = st.number_input("Prep minutes", min_value=1, max_value=180, value=15)
-            internet = st.checkbox("Round rules permit internet research", key="internet")
-            st.caption(
-                "Live research requires a configured Tavily key. "
-                "Only motion and concepts are sent to search."
+def render_summary(architecture, index, *, repaired=False):
+    with st.container(border=True):
+        st.caption(f"OPTION {index}" + (" · REPAIRED" if repaired else ""))
+        st.subheader(architecture.name)
+        st.caption("Why this wins")
+        st.write(architecture.why_this_can_win)
+        st.caption("Proposed collapse options")
+        for contention in architecture.contentions:
+            st.markdown(f"**{contention.title}**")
+            st.write(
+                contention.construction.surviving_ballot_argument
+                if contention.construction
+                else " ".join(contention.impacts)
             )
-        judge_notes = st.text_area("Judge paradigm or notes")
-        concepts = st.text_area("Extra concepts (one per line)")
-        theory = st.selectbox("Include theory", [None, True, False])
-        kritiks = st.selectbox("Include kritiks", [None, True, False])
-        preview = st.form_submit_button("Preview plan")
-        prepare = st.form_submit_button("Prepare knowledge packet", type="primary")
-    if preview or prepare:
-        st.session_state.pop("round_output", None)
-        st.session_state.pop("strategy_output", None)
-        st.session_state.pop("case_output", None)
-        st.session_state.pop("evaluation_output", None)
-        st.session_state.pop("architecture_choice", None)
-        try:
-            context = RoundInput(
-                motion=motion,
-                side=side,
-                round_type=round_type,
-                judge_category=judge,
-                judge_notes=judge_notes or None,
-                include_theory=theory,
-                include_kritiks=kritiks,
-                explicit_concepts=[line.strip() for line in concepts.splitlines() if line.strip()],
-                prep_rules=PrepRules(minutes=int(minutes), internet_allowed=internet),
-            )
-            director = RoundDirector(settings)
-            with st.spinner("Preparing your round…"):
-                output = director.plan(context) if preview else director.prepare(context)
-            st.session_state["round_output"] = output
-        except Exception as exc:
-            st.error(f"Round preparation could not finish: {exc}")
-    output = st.session_state.get("round_output")
-    if output is None:
-        st.info("Preview the retrieval plan or prepare a packet from your existing indexes.")
-        return
-    packet = output if hasattr(output, "items") else None
-    plan = packet.plan if packet is not None else output
-    st.subheader("Submitted motion")
-    st.text(plan.round_input.motion)
-    st.caption("Shown results belong to the last submission. Submit again to apply edits.")
-    with st.expander("Round plan", expanded=packet is None):
+        st.caption("Main vulnerability")
+        st.write(architecture.main_vulnerability)
+        needs = list(
+            dict.fromkeys(need for c in architecture.contentions for need in c.needs_verification)
+        )
+        if needs:
+            with st.expander("Unresolved evidence"):
+                for need in needs:
+                    st.write(need)
+        with st.expander(f"Architecture {index}: details"):
+            render_architecture(architecture)
+
+
+@st.fragment(run_every="1s")
+def prep_clock(minutes):
+    remaining = remaining_seconds(st.session_state, minutes)
+    if remaining is not None:
+        st.metric("Prep remaining", f"{remaining // 60:02d}:{remaining % 60:02d}")
+        st.caption("Elapsed-time guide. Does not cancel requests or extend the round deadline.")
+        if remaining == 0:
+            st.warning("Prep time has elapsed.")
+
+
+def render_sources(packet, plan):
+    with st.expander("Round plan and settings"):
         st.json(plan.model_dump(mode="json"))
     if plan.judge_profile:
-        profile = plan.judge_profile
-        st.subheader("Judge adaptation")
-        st.caption(
-            f"Category: {profile.category or 'unspecified'} · {profile.classification_source}"
-        )
-        for guidance in profile.guidance:
-            st.text(guidance)
-        for warning in profile.warnings:
-            st.warning(warning)
-        if profile.preferences:
-            with st.expander("Specific preferences"):
-                for preference in profile.preferences:
-                    st.text(preference)
+        with st.expander("Judge guidance"):
+            st.subheader("Judge adaptation")
+            for guidance in plan.judge_profile.guidance:
+                st.text(guidance)
+            for warning in plan.judge_profile.warnings:
+                st.warning(warning)
     if packet is None:
+        st.info("Prepare a knowledge packet to view sources.")
         return
-    st.subheader(f"Knowledge packet · {len(packet.items)} unique chunks")
-    for warning in packet.warnings:
-        st.warning(warning)
-    for category, ids in packet.groups.items():
-        if not ids:
-            continue
-        st.subheader(category.value.replace("_", " ").title())
-        for chunk_id in ids:
-            item = packet.items[chunk_id]
-            candidate = item.candidate
-            chunk = candidate.chunk
-            with st.container(border=True):
-                st.text(chunk.source_file)
-                st.text(" > ".join(chunk.heading_path))
-                st.caption(
-                    f"Score {candidate.final_score:.4f} · Support {candidate.support_level.value}"
-                )
-                st.text(chunk.text)
-                st.text(chunk.source_path)
-                for note in item.verification_notes:
-                    st.warning(note)
-                with st.expander("Source metadata and scores"):
-                    st.json(item.model_dump(mode="json"))
-    if packet.research is not None:
-        research = packet.research
+    st.subheader("Your evidence library")
+    st.caption(
+        f"{len(packet.items)} archive excerpts. Retrieval scores are not factual verification."
+    )
+    with st.expander("Archive excerpts and provenance"):
+        for category, ids in packet.groups.items():
+            if not ids:
+                continue
+            st.markdown(f"**{category.value.replace('_', ' ').title()}**")
+            for chunk_id in ids:
+                item = packet.items[chunk_id]
+                chunk = item.candidate.chunk
+                with st.expander(f"{chunk.source_file} · {' > '.join(chunk.heading_path)}"):
+                    st.text(chunk.text)
+                    st.text(chunk.source_path)
+                    for note in item.verification_notes:
+                        st.caption(note)
+                    st.json(item.model_dump(mode="json"), expanded=False)
+    research = packet.research
+    if research:
         st.subheader("Live research")
-        st.caption(f"Status: {research.status} · {len(research.sources)} sources")
+        st.caption(f"{research.status} · {len(research.sources)} sources")
         for warning in research.warnings:
             st.warning(warning)
         for source in research.sources:
-            with st.container(border=True):
-                st.text(source.title)
+            with st.expander(source.title):
                 st.link_button("Open source", source.url)
-                st.caption(
-                    f"Published: {source.published_date or 'unknown'} · Unverified search excerpt"
-                )
+                st.caption(f"Published: {source.published_date or 'unknown'} · Unverified excerpt")
                 st.text(source.excerpt)
                 for note in source.notes:
                     st.caption(note)
-    st.subheader("Three case architectures")
-    st.caption(
-        "Generation sends selected archive excerpts, judge notes, and research to the "
-        "selected inference provider. It requires internet-permitted prep and explicit cloud setup."
-    )
-    preferences = st.text_area("Strategy preferences", key="strategy_preferences")
-    if st.button("Generate three architectures", key="generate_strategies"):
-        st.session_state.pop("strategy_output", None)
-        st.session_state.pop("case_output", None)
-        st.session_state.pop("evaluation_output", None)
-        st.session_state.pop("architecture_choice", None)
-        with st.spinner("Generating architectures…"):
-            st.session_state["strategy_output"] = RoundDirector(settings).strategize(
-                packet, preferences=preferences
-            )
-    strategy = st.session_state.get("strategy_output")
-    if strategy is not None:
-        st.caption(
-            f"Strategy status: {strategy.status} · {strategy.provider or 'legacy OpenAI'} · "
-            f"{strategy.model or 'unspecified model'}. Results reflect the last generation request."
-        )
-        render_diagnostics(strategy)
-        for warning in strategy.warnings:
-            st.warning(warning)
-        for index, architecture in enumerate(strategy.architectures, start=1):
-            with st.expander(f"Architecture {index}: {architecture.name}", expanded=True):
-                render_architecture(architecture)
-        if strategy.status == "completed":
-            st.download_button(
-                "Download architectures",
-                strategy.model_dump_json(indent=2),
-                file_name="strategy_architectures.json",
-                mime="application/json",
-            )
-    if strategy is not None and strategy.status == "completed":
-        st.subheader("Evaluate and choose a strategy")
-        st.caption(
-            "Run Red Team, one repair pass, and rubric scoring. This makes up to three "
-            "additional model requests using the same cloud settings. You make the final choice."
-        )
-        if st.button("Evaluate three architectures", key="evaluate_strategies"):
-            st.session_state.pop("case_output", None)
-            st.session_state.pop("evaluation_output", None)
-            st.session_state.pop("architecture_choice", None)
-            with st.spinner("Critiquing, repairing, and scoring…"):
-                st.session_state["evaluation_output"] = RoundDirector(settings).evaluate(
-                    packet, strategy
-                )
-        evaluation = st.session_state.get("evaluation_output")
-        if evaluation is not None:
-            st.caption(
-                f"Evaluation: {evaluation.status} · Stage: {evaluation.stage} · "
-                f"{evaluation.provider or 'legacy OpenAI'} · "
-                f"{evaluation.model or 'unspecified model'}"
-            )
-            render_diagnostics(evaluation)
-            for warning in evaluation.warnings:
-                st.warning(warning)
-            for critique in evaluation.critiques:
-                with st.expander(f"Red Team · Architecture {critique.architecture_id}"):
-                    for number, finding in enumerate(critique.findings, start=1):
-                        st.text(f"{number}. [{finding.severity}] {finding.weakness}")
-                        st.text(f"Opponent response: {finding.opponent_response}")
-                        st.text(f"Repair goal: {finding.repair_goal}")
-            for repair in evaluation.repairs:
-                with st.expander(f"Repaired architecture {repair.architecture_id}"):
-                    for change in repair.changes:
-                        st.text(f"Change: {change}")
-                    for response in repair.responses:
-                        st.text(
-                            f"Finding {response.finding_number}: "
-                            f"{response.status} — {response.explanation}"
-                        )
-                    for risk in repair.remaining_risks:
-                        st.text(f"Remaining risk: {risk}")
-                    render_architecture(repair.architecture)
-            if evaluation.status == "completed":
-                for row in evaluation.rankings:
-                    with st.expander(
-                        f"Rank {row.rank} · Architecture {row.architecture_id} · {row.total}/100",
-                        expanded=True,
-                    ):
-                        for key, maximum in RUBRIC.items():
-                            score = getattr(row.scores, key)
-                            st.text(
-                                f"{key.replace('_', ' ').title()}: "
-                                f"{score.points}/{maximum} — {score.rationale}"
-                            )
-                        st.text(f"Tradeoffs: {row.tradeoffs}")
-                names = {r.architecture_id: r.architecture.name for r in evaluation.repairs}
-                choice = st.selectbox(
-                    "Your architecture choice",
-                    [None, 1, 2, 3],
-                    key="architecture_choice",
-                    format_func=lambda i: (
-                        "Choose an architecture" if i is None else (f"{i}: {names[i]}")
-                    ),
-                )
-                if st.button("Confirm architecture choice", disabled=choice is None):
-                    st.session_state.pop("case_output", None)
-                    evaluation = select_architecture(evaluation, choice)
-                    st.session_state["evaluation_output"] = evaluation
-                if evaluation.selected_architecture_id is not None:
-                    st.success(
-                        f"Your confirmed choice: Architecture {evaluation.selected_architecture_id}"
-                    )
-                if evaluation.selected_architecture_id is not None:
-                    st.subheader("Write your case")
-                    st.caption(
-                        "Uses the confirmed choice. Government/affirmative: 7 minutes; "
-                        "opposition/negative: 8 minutes. Two model requests, or three if trimming "
-                        "is needed, using the existing cloud settings."
-                    )
-                    wpm = st.number_input(
-                        "Reading speed (words per minute)", 80, 400, 150, key="case_wpm"
-                    )
-                    reserve = st.number_input(
-                        "Reserve for pauses (seconds)", 0, 120, 30, key="case_reserve"
-                    )
-                    if st.button("Write final case", key="write_case"):
-                        st.session_state.pop("case_output", None)
-                        with st.spinner("Writing and refining your case…"):
-                            st.session_state["case_output"] = RoundDirector(settings).write_case(
-                                packet,
-                                strategy,
-                                evaluation,
-                                budget=SpeechBudget(words_per_minute=wpm, reserve_seconds=reserve),
-                            )
-                    final_case = st.session_state.get("case_output")
-                    if final_case is not None:
-                        render_diagnostics(final_case)
-                        for warning in final_case.warnings:
-                            st.warning(warning)
-                        if final_case.status == "completed":
-                            st.caption(
-                                f"{final_case.provider or 'legacy OpenAI'} · "
-                                f"{final_case.model or 'unspecified model'} · "
-                                f"Selected strategy: {final_case.selected_strategy_score}/100 · "
-                                f"{final_case.word_count}/{final_case.word_limit} words · "
-                                f"Estimated {final_case.estimated_seconds / 60:.1f} minutes "
-                                f"at {final_case.budget.words_per_minute} wpm. "
-                                "Results use the last submitted timing settings."
-                            )
-                            st.markdown(final_case.markdown)
-                            st.download_button(
-                                "Download case (Markdown)",
-                                final_case.markdown,
-                                file_name="debate_case.md",
-                                mime="text/markdown",
-                            )
-                            st.download_button(
-                                "Download case (JSON)",
-                                final_case.model_dump_json(indent=2),
-                                file_name="debate_case.json",
-                                mime="application/json",
-                            )
-                        else:
-                            st.error(f"Case not completed: {final_case.status}")
-                st.download_button(
-                    "Download evaluation and choice",
-                    evaluation.model_dump_json(indent=2),
-                    file_name="strategy_evaluation.json",
-                    mime="application/json",
-                )
+    if packet.warnings:
+        with st.expander("Retrieval notes"):
+            for warning in packet.warnings:
+                st.write(warning)
     st.download_button(
         "Download Knowledge Packet",
         packet.model_dump_json(indent=2),
         file_name="knowledge_packet.json",
         mime="application/json",
     )
+
+
+def render_strategies(packet, settings):
+    st.subheader("Choose your route to the ballot")
+    st.caption("Compare independent offense and evidence gaps before confirming your choice.")
+    preferences = st.text_area(
+        "Strategy preferences",
+        key="strategy_preferences",
+        placeholder="Example: poverty + environment, each with its own ballot story",
+    )
+    allowed = packet.plan.round_input.prep_rules.inference_permitted
+    if not allowed:
+        st.info("Enable cloud model access in Round setup to generate a case.")
+    if st.button("Generate three architectures", key="generate_strategies", disabled=not allowed):
+        invalidate(st.session_state, "strategy_output")
+        with st.spinner("Generating three approaches…"):
+            st.session_state["strategy_output"] = timed(
+                st.session_state,
+                "strategy",
+                lambda: RoundDirector(settings).strategize(packet, preferences=preferences),
+            )
+    strategy = st.session_state.get("strategy_output")
+    if strategy is None:
+        return
+    st.caption(f"Generation: {strategy.status} · {strategy.provider or 'legacy OpenAI'}")
+    for warning in strategy.warnings:
+        st.caption(warning)
+    render_diagnostics(strategy)
+    for i, (column, architecture) in enumerate(
+        zip(st.columns(3), strategy.architectures, strict=False), 1
+    ):
+        with column:
+            render_summary(architecture, i)
+    if strategy.status != "completed":
+        return
+    st.download_button(
+        "Download architectures",
+        strategy.model_dump_json(indent=2),
+        file_name="strategy_architectures.json",
+        mime="application/json",
+    )
+    st.divider()
+    st.subheader("Pressure-test and select")
+    st.caption("Critique → repair → scoring. You make the final choice.")
+    if st.button("Evaluate three architectures", key="evaluate_strategies", disabled=not allowed):
+        invalidate(st.session_state, "evaluation_output")
+        with st.spinner("Critiquing, repairing, and scoring…"):
+            st.session_state["evaluation_output"] = timed(
+                st.session_state,
+                "evaluation",
+                lambda: RoundDirector(settings).evaluate(packet, strategy),
+            )
+        st.session_state["decision_started"] = monotonic()
+    evaluation = st.session_state.get("evaluation_output")
+    if evaluation is None:
+        return
+    if (
+        evaluation.status in {"failed", "invalid_output"}
+        and evaluation.stage == "scoring"
+        and st.button("Retry scoring only", key="resume_scoring", disabled=not allowed)
+    ):
+        with st.spinner("Scoring the saved repairs…"):
+            evaluation = timed(
+                st.session_state,
+                "scoring_retry",
+                lambda: EvaluationAgent(settings).evaluate(packet, strategy, checkpoint=evaluation),
+            )
+        st.session_state["evaluation_output"] = evaluation
+        if evaluation.status == "completed":
+            st.session_state["decision_started"] = monotonic()
+    st.caption(f"Evaluation: {evaluation.status} · {evaluation.stage}")
+    for warning in evaluation.warnings:
+        st.caption(warning)
+    render_diagnostics(evaluation)
+    for column, repair in zip(st.columns(3), evaluation.repairs, strict=False):
+        with column:
+            render_summary(repair.architecture, repair.architecture_id, repaired=True)
+            for finding, response in unresolved_findings(evaluation, repair.architecture_id):
+                kind = (finding.gap_kind or "unclassified").replace("_", " ")
+                location = (
+                    f"Contention {finding.contention_number}"
+                    if finding.contention_number
+                    else "Architecture"
+                )
+                status = response.status.replace("_", " ") if response else "not repaired"
+                st.warning(f"{location} · {kind} · {status}: {finding.weakness}")
+                if response:
+                    st.caption(response.explanation)
+            for risk in repair.remaining_risks:
+                st.caption(risk)
+    with st.expander("Critiques and repair record"):
+        for critique in evaluation.critiques:
+            st.markdown(f"**Architecture {critique.architecture_id}**")
+            for finding in critique.findings:
+                st.text(f"{finding.weakness} → {finding.repair_goal}")
+        for repair in evaluation.repairs:
+            for change in repair.changes:
+                st.text(change)
+    if evaluation.status != "completed":
+        return
+    for row in evaluation.rankings:
+        with st.expander(f"Rank {row.rank} · Architecture {row.architecture_id} · {row.total}/100"):
+            st.write(row.tradeoffs)
+            for key, maximum in RUBRIC.items():
+                score = getattr(row.scores, key)
+                st.text(
+                    f"{key.replace('_', ' ').title()}: {score.points}/{maximum} — {score.rationale}"
+                )
+    st.caption("Warnings identify unresolved risks; you may still select a practice strategy.")
+    names = {r.architecture_id: r.architecture.name for r in evaluation.repairs}
+    choice = st.selectbox(
+        "Your architecture choice",
+        [None, 1, 2, 3],
+        key="architecture_choice",
+        format_func=lambda i: "Choose an architecture" if i is None else f"{i}: {names[i]}",
+    )
+    if st.button("Confirm architecture choice", disabled=choice is None):
+        if choice != evaluation.selected_architecture_id:
+            invalidate(st.session_state, "case_output")
+            st.info("Architecture changed. Any previous final case has been cleared.")
+        evaluation = select_architecture(evaluation, choice)
+        st.session_state["evaluation_output"] = evaluation
+        started = st.session_state.pop("decision_started", None)
+        if started is not None:
+            st.session_state["decision_seconds"] = monotonic() - started
+    if evaluation.selected_architecture_id is not None:
+        st.success(
+            f"Confirmed: {names[evaluation.selected_architecture_id]}. Open Final case to write it."
+        )
+    st.download_button(
+        "Download evaluation and choice",
+        evaluation.model_dump_json(indent=2),
+        file_name="strategy_evaluation.json",
+        mime="application/json",
+    )
+
+
+def render_final(packet, settings):
+    evaluation = st.session_state.get("evaluation_output")
+    strategy = st.session_state.get("strategy_output")
+    st.subheader("Your opening speech")
+    if evaluation is None or evaluation.selected_architecture_id is None:
+        st.info("Evaluate and confirm an architecture in Strategies before writing your case.")
+        return
+    st.caption(
+        "Government: 7 minutes · Opposition: 8 minutes. Grace time is not added to the budget."
+    )
+    with st.expander("Delivery settings"):
+        wpm = st.number_input("Reading speed (words per minute)", 80, 400, 150, key="case_wpm")
+        reserve = st.number_input(
+            "Reserve for pauses and POIs (seconds)", 0, 120, 30, key="case_reserve"
+        )
+    if st.button(
+        "Write final case",
+        key="write_case",
+        disabled=not packet.plan.round_input.prep_rules.inference_permitted,
+    ):
+        invalidate(st.session_state, "case_output")
+        with st.spinner("Writing and refining your selected case…"):
+            st.session_state["case_output"] = timed(
+                st.session_state,
+                "case",
+                lambda: RoundDirector(settings).write_case(
+                    packet,
+                    strategy,
+                    evaluation,
+                    budget=SpeechBudget(words_per_minute=wpm, reserve_seconds=reserve),
+                ),
+            )
+    result = st.session_state.get("case_output")
+    if result is None:
+        return
+    render_diagnostics(result)
+    if result.status != "completed":
+        st.error(f"Case not completed: {result.status}")
+        for warning in result.warnings:
+            st.warning(warning)
+        return
+    left, right = st.columns(2)
+    left.metric("Speech length", f"{result.word_count} / {result.word_limit} words")
+    right.metric("Estimated delivery", f"{result.estimated_seconds / 60:.1f} min")
+    st.caption(
+        f"Saved timing: {result.budget.words_per_minute} wpm, "
+        f"{result.budget.reserve_seconds}s reserve. Rehearse aloud."
+    )
+    st.markdown(render_case(result.case, packet))
+    with st.expander("Preparation notes and sources"):
+        st.markdown(evidence_notes(result.case, packet))
+        for warning in result.warnings:
+            st.caption(warning)
+    st.download_button(
+        "Download case (Markdown)",
+        result.markdown,
+        file_name="debate_case.md",
+        mime="text/markdown",
+    )
+    st.download_button(
+        "Download case (JSON)",
+        result.model_dump_json(indent=2),
+        file_name="debate_case.json",
+        mime="application/json",
+    )
+
+
+def restore_saved(settings):
+    try:
+        directory = settings.project_root / "data" / "parsed" / st.session_state["saved_run"]
+        restored = load_checkpoint(directory)
+        invalidate(st.session_state, "round_output")
+        st.session_state.update(restored)
+        context = restored["round_output"].plan.round_input
+        st.session_state.update(
+            {
+                "motion": context.motion,
+                "side": context.side,
+                "round_type": context.round_type,
+                "judge": context.judge_category,
+                "judge_notes": context.judge_notes or "",
+                "round_concepts": "\n".join(context.explicit_concepts),
+                "prep_minutes": context.prep_rules.minutes,
+                "internet": context.prep_rules.internet_allowed,
+                "cloud_inference": context.prep_rules.inference_permitted,
+                "round_signature": context.model_dump_json(),
+            }
+        )
+        evaluation = restored.get("evaluation_output")
+        if evaluation and evaluation.status == "completed":
+            st.session_state["architecture_choice"] = evaluation.selected_architecture_id
+            st.session_state["decision_started"] = monotonic()
+        st.session_state["checkpoint_notice"] = (
+            "Checkpoint loaded locally. No provider request was made."
+        )
+    except (ValueError, OSError):
+        st.session_state["checkpoint_notice"] = (
+            "Could not load matching packet and strategy exports."
+        )
+
+
+def main():
+    st.set_page_config(page_title="Round preparation", layout="wide")
+    st.markdown(
+        """<style>
+    .block-container { max-width: 1440px; padding-top: 4.5rem; }
+    [data-testid="stText"] { white-space: pre-wrap; overflow-wrap: anywhere; }
+    [data-testid="stMetricValue"] { font-size: 1.5rem; }
+    @media (max-width: 760px) {
+      [data-testid="stHorizontalBlock"] { flex-direction: column; }
+      [data-testid="stColumn"] { width: 100% !important; flex: 1 1 100% !important; }
+    }
+    </style>""",
+        unsafe_allow_html=True,
+    )
+    st.caption("DEBATE CASE ENGINE")
+    st.title("Round preparation")
+    st.write("Build a case you understand. Choose the strategy. Own the ballot story.")
+    settings = get_settings().model_copy(deep=True)
+    with st.expander("Advanced · model and connection"):
+        providers = list(ProviderName)
+        provider = st.selectbox(
+            "Inference provider",
+            providers,
+            index=providers.index(settings.strategy.provider),
+            key="inference_provider",
+        )
+        settings.strategy.provider = provider
+        config = provider_settings(settings)
+        st.caption(
+            f"{provider.value} · {config.model or 'provider default'}. "
+            "Selected archive excerpts, research and judge notes go to this provider."
+        )
+        st.caption("Tavily key: " + ("configured" if settings.research.api_key else "missing"))
+        if not inference_ready(settings):
+            st.info("Configure the selected provider and enable remote access before generation.")
+    status = st.empty()
+    setup_tab, source_tab, strategy_tab, final_tab = st.tabs(
+        ["1 · Round setup", "2 · Sources", "3 · Strategies", "4 · Final case"]
+    )
+    with setup_tab:
+        with st.form("round"):
+            motion = st.text_area(
+                "Motion", key="motion", placeholder="THW make public transport free"
+            )
+            left, right = st.columns(2)
+            with left:
+                side = st.selectbox("Side", [None, *Side], key="side")
+                round_type = st.selectbox("Round type", [None, *RoundType], key="round_type")
+                judge = st.selectbox("Judge category", [None, *JudgeCategory], key="judge")
+            with right:
+                minutes = st.number_input("Prep minutes", 1, 180, 15, key="prep_minutes")
+                internet = st.checkbox("Round rules permit internet research", key="internet")
+                cloud = st.checkbox("Allow cloud model access", value=True, key="cloud_inference")
+                st.caption(
+                    "15 minutes + research off selects NYPDL: no theory, Ks or tricks. "
+                    "Cloud model access is separate from web research."
+                )
+            judge_notes = st.text_area("Judge paradigm or notes", key="judge_notes")
+            concepts = st.text_area("Extra concepts (one per line)", key="round_concepts")
+            with st.expander("Advanced · general-format retrieval"):
+                theory = st.selectbox("Include theory", [None, True, False])
+                kritiks = st.selectbox("Include kritiks", [None, True, False])
+                st.caption("NYPDL always excludes these, regardless of the selections above.")
+            preview = st.form_submit_button("Preview plan")
+            prepare = st.form_submit_button("Prepare knowledge packet", type="primary")
+        if preview or prepare:
+            try:
+                context = RoundInput(
+                    motion=motion,
+                    side=side,
+                    round_type=round_type,
+                    judge_category=judge,
+                    judge_notes=judge_notes or None,
+                    include_theory=theory,
+                    include_kritiks=kritiks,
+                    explicit_concepts=[
+                        line.strip() for line in concepts.splitlines() if line.strip()
+                    ],
+                    prep_rules=PrepRules(
+                        minutes=int(minutes),
+                        internet_allowed=internet,
+                        cloud_inference_allowed=cloud,
+                    ),
+                )
+                signature = context.model_dump_json()
+                previous = st.session_state.get("round_output")
+                changed = st.session_state.get("round_signature") != signature
+                if changed:
+                    invalidate(st.session_state, "round_output")
+                    st.session_state["round_signature"] = signature
+                    if previous is not None:
+                        st.info(
+                            "Round settings changed. Previous sources, strategies and case cleared."
+                        )
+                current = st.session_state.get("round_output")
+                if current is None or (prepare and not hasattr(current, "items")):
+                    director = RoundDirector(settings)
+                    with st.spinner("Preparing your round…"):
+                        st.session_state["round_output"] = timed(
+                            st.session_state,
+                            "preparation",
+                            lambda: (
+                                director.prepare(context) if prepare else director.plan(context)
+                            ),
+                        )
+                    if prepare:
+                        st.session_state["preparation_timings"] = director.preparation_timings
+                else:
+                    st.info("Reused the unchanged round. Existing work is preserved.")
+            except Exception:
+                invalidate(st.session_state, "round_output")
+                st.error("Round preparation failed. Check the motion, settings and local indexes.")
+        saved_root = settings.project_root / "data" / "parsed"
+        checkpoints = sorted(
+            {
+                path.parent.relative_to(saved_root).as_posix()
+                for path in saved_root.glob("**/strategy.json")
+            }
+        )
+        if checkpoints:
+            with st.expander("Open a saved checkpoint"):
+                st.selectbox("Saved run", checkpoints, key="saved_run")
+                st.button(
+                    "Load saved strategies",
+                    key="load_checkpoint",
+                    on_click=restore_saved,
+                    args=(settings,),
+                )
+                if "checkpoint_notice" in st.session_state:
+                    st.info(st.session_state["checkpoint_notice"])
+        output = st.session_state.get("round_output")
+        if output is not None:
+            plan = output.plan if hasattr(output, "items") else output
+            if plan.round_input.prep_rules.profile == "nypdl":
+                st.caption(
+                    "NYPDL adaptation: archive + AI, no web research. "
+                    "Not a claim of full tournament compliance."
+                )
+            if st.button(
+                "Confirm sides and start prep timer",
+                key="start_prep",
+                disabled=plan.retrieval_request.side in {None, Side.UNKNOWN},
+            ):
+                st.session_state["prep_started"] = monotonic()
+            prep_clock(plan.round_input.prep_rules.minutes)
+    output = st.session_state.get("round_output")
+    if output is None:
+        status.info("Start with your motion and round settings.")
+        return
+    packet = output if hasattr(output, "items") else None
+    plan = packet.plan if packet is not None else output
+    with source_tab:
+        render_sources(packet, plan)
+    with strategy_tab:
+        if packet is not None:
+            render_strategies(packet, settings)
+        else:
+            st.info("Prepare sources before generating architectures.")
+    with final_tab:
+        if packet is not None:
+            render_final(packet, settings)
+    phase = (
+        "Final case"
+        if st.session_state.get("case_output")
+        else ("Strategies" if st.session_state.get("strategy_output") else "Sources")
+    )
+    status.info(
+        f"{plan.round_input.prep_rules.profile.upper()} · "
+        f"Research: {plan.research_status} · Stage: {phase}"
+    )
+    st.caption(f"Submitted motion: {plan.round_input.motion}. Submit Round setup to apply edits.")
+    with st.expander("Session timing"):
+        timing = st.session_state.get("timings", {})
+        total = sum(sum(values) for values in timing.values())
+        st.write(f"Engine time across this round's requests: {total:.1f}s")
+        for stage, seconds in st.session_state.get("preparation_timings", {}).items():
+            st.write(f"{stage.title()}: {seconds:.1f}s")
+        if "decision_seconds" in st.session_state:
+            st.write(f"Architecture review time: {st.session_state['decision_seconds']:.1f}s")
 
 
 if __name__ == "__main__":

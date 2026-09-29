@@ -128,7 +128,13 @@ def research_queries(context: RoundInput, max_queries: int) -> list[str]:
     # Only public round terms are sent. Never include archive text or judge notes.
     topic = re.sub(r"\s+", " ", clean_motion(context.motion)).strip()[:500]
     year = context.current_year
+    # Explicit concepts target the user's evidence gaps without sending private text.
     queries = [
+        f"{topic} {concept[:300]} {year} evidence outcomes limitations"
+        for concept in context.explicit_concepts[:max_queries]
+        if concept.strip()
+    ]
+    queries += [
         f"{topic} {year} official statistics government data",
         f"{topic} peer reviewed study evidence outcomes limitations",
     ]

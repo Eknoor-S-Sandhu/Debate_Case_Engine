@@ -9,7 +9,12 @@ from typing import Protocol
 from pydantic import ValidationError
 
 from debate_engine.agents.diagnostics import invalid_output, run_inference
-from debate_engine.agents.strategy_prompt import STRATEGY_INSTRUCTIONS
+from debate_engine.agents.round_rules import (
+    profile_instructions,
+    prohibited_archive,
+    validate_nypdl_offense,
+)
+from debate_engine.agents.strategy_prompt import STRATEGY_INSTRUCTIONS, STRATEGY_PROMPT_VERSION
 from debate_engine.agents.strategy_provider import (
     create_provider,
     inference_metadata,
@@ -35,7 +40,11 @@ def build_context(
     packet: KnowledgePacket, settings: Settings, preferences: str
 ) -> tuple[dict, list[str]]:
     config = settings.strategy
-    request = packet.plan.retrieval_request
+    request = packet.plan.retrieval_request.model_copy(deep=True)
+    nypdl = packet.plan.round_input.prep_rules.profile == "nypdl"
+    if nypdl:
+        request.include_theory = False
+        request.include_kritiks = False
     intents = infer_query_intents(request)
     archive = {}
     warnings = []
@@ -43,6 +52,9 @@ def build_context(
         chunk = item.candidate.chunk
         if key != chunk.chunk_id or item.candidate.chunk_id != key:
             raise ValueError("Packet source IDs disagree.")
+        if nypdl and prohibited_archive(chunk):
+            warnings.append("NYPDL-ineligible archive material was omitted.")
+            continue
         eligible, _ = candidate_is_eligible(chunk, request, intents)
         if not eligible:
             warnings.append("Ineligible archive material was omitted from strategy input.")
@@ -64,7 +76,7 @@ def build_context(
             "kritik": is_kritik_chunk(chunk),
         }
     research = {}
-    if packet.research:
+    if packet.research and packet.plan.round_input.prep_rules.internet_allowed:
         for source in packet.research.sources[: config.max_research_sources]:
             if source.source_id in research:
                 raise ValueError("Duplicate research source IDs in packet.")
@@ -78,6 +90,7 @@ def build_context(
         if len(research) < len(packet.research.sources):
             warnings.append("Research source limit reached; some sources were not sent.")
     context = {
+        "profile": packet.plan.round_input.prep_rules.profile,
         "round": request.model_dump(mode="json"),
         "prep_rules": packet.plan.round_input.prep_rules.model_dump(mode="json"),
         "judge": packet.plan.judge_profile.model_dump(mode="json")
@@ -106,7 +119,24 @@ def validate_architectures(output: ArchitectureSet, context: dict) -> None:
         claims = [_normalized(c.claim) for c in architecture.contentions]
         if len(set(claims)) != len(claims):
             raise ValueError("Contentions must provide independent offense.")
+        if context.get("profile") == "nypdl":
+            validate_nypdl_offense(architecture.framing + " " + architecture.route_to_ballot)
         for contention in architecture.contentions:
+            if context.get("profile") == "nypdl":
+                if contention.argument_style != "substantive":
+                    raise ValueError("NYPDL requires substantive contentions.")
+                if contention.construction is not None:
+                    validate_nypdl_offense(contention.construction.model_dump_json())
+                validate_nypdl_offense(
+                    " ".join(
+                        [
+                            contention.claim,
+                            *contention.warrants,
+                            *contention.impacts,
+                            *contention.preempts,
+                        ]
+                    )
+                )
             if (
                 kind == "policy"
                 and contention.argument_style == "substantive"
@@ -171,14 +201,16 @@ class StrategyAgent:
         fingerprint = hashlib.sha256(packet.model_dump_json().encode()).hexdigest()
         result = StrategyResult(
             status="not_configured",
+            prompt_version=STRATEGY_PROMPT_VERSION,
             packet_fingerprint=fingerprint,
             **inference_metadata(self.settings, self.provider is not None),
         )
-        # All providers honor the offline rule. Local generation can be added explicitly later.
-        if not packet.plan.round_input.prep_rules.internet_allowed:
+        # Model permission is independent of web research for explicitly configured rounds.
+        if not packet.plan.round_input.prep_rules.inference_permitted:
             result.status = "disabled_by_prep_rules"
             result.warnings = [
-                "Strategy generation is disabled for offline prep; no provider was called."
+                "Strategy generation is disabled by cloud-inference permission. "
+                "No provider was called."
             ]
             return result
         config = self.settings.strategy
@@ -220,7 +252,7 @@ class StrategyAgent:
                 provider,
                 result,
                 "strategy",
-                STRATEGY_INSTRUCTIONS,
+                profile_instructions(STRATEGY_INSTRUCTIONS, context),
                 encoded,
                 ArchitectureSet.model_json_schema(),
             )
@@ -243,6 +275,11 @@ class StrategyAgent:
             return result
         result.status = "completed"
         result.architectures = output.architectures
+        if any(c.construction is None for a in output.architectures for c in a.contentions):
+            result.warnings.append(
+                "Construction analysis is missing for some contentions; "
+                "their causal routes and collapse dependencies have not been mapped."
+            )
         result.warnings.append(
             "Unranked proposals, not verified cases. "
             "Diversity checks detect text overlap, not strategic quality."

@@ -33,6 +33,7 @@ def run_round(director, scenario, artifact_dir=None):
             prep_rules={"internet_allowed": True},
         )
         packet = director.prepare(context)
+        row["preparation_timings"] = getattr(director, "preparation_timings", {})
         row["research_status"] = packet.research.status if packet.research else "not_run"
         row["research_source_count"] = len(packet.research.sources) if packet.research else 0
         row["archive_item_count"] = len(packet.items)

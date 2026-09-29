@@ -2,7 +2,14 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_serializer,
+    model_validator,
+)
 
 from debate_engine.schemas.diagnostics import InferenceCall
 
@@ -17,6 +24,36 @@ class SourceQuote(StrictModel):
     source_type: Literal["archive", "research"]
     source_id: Text
     text: Text
+
+
+class CausalRoute(StrictModel):
+    explanation: Text
+    warrant_numbers: list[Annotated[int, Field(strict=True, ge=1, le=5)]] = Field(
+        min_length=1, max_length=5
+    )
+    archive_chunk_ids: list[Text] = Field(max_length=8)
+    research_source_ids: list[Text] = Field(max_length=8)
+    assumptions: list[Text] = Field(max_length=5)
+    dependencies: list[Text] = Field(max_length=5)
+
+
+class TerminalOutcome(StrictModel):
+    consequence: Text
+    problem_population: Text | None
+    reachable_population: Text | None
+    attributable_change: Text | None
+    severity: Text
+    duration: Text | None
+    evidence_gaps: list[Text] = Field(max_length=5)
+
+
+class ConstructionAnalysis(StrictModel):
+    status_quo_barrier: Text | None
+    proposed_change: Text
+    causal_routes: list[CausalRoute] = Field(min_length=1, max_length=3)
+    terminal_outcomes: list[TerminalOutcome] = Field(min_length=1, max_length=3)
+    shared_dependencies: list[Text] = Field(max_length=5)
+    surviving_ballot_argument: Text
 
 
 class Contention(StrictModel):
@@ -35,6 +72,38 @@ class Contention(StrictModel):
     quotes: list[SourceQuote] = Field(max_length=3)
     assumptions: list[Text] = Field(max_length=5)
     needs_verification: list[Text] = Field(max_length=5)
+
+    construction: ConstructionAnalysis | None = None
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        schema = handler(core_schema)
+        # Providers require every property in strict JSON schemas. Legacy parsing
+        # still accepts absent metadata; new responses must supply it or null.
+        schema.setdefault("required", []).append("construction")
+        schema["properties"]["construction"].pop("default", None)
+        return schema
+
+    @model_serializer(mode="wrap")
+    def serialize_compatible(self, handler):
+        data = handler(self)
+        if self.construction is None:
+            data.pop("construction", None)
+        return data
+
+    @model_validator(mode="after")
+    def validate_construction(self):
+        if self.construction is not None:
+            for route in self.construction.causal_routes:
+                if any(n > len(self.warrants) for n in route.warrant_numbers):
+                    raise ValueError("Construction references a missing contention warrant.")
+                if len(set(route.warrant_numbers)) != len(route.warrant_numbers):
+                    raise ValueError("Construction warrant references must be unique.")
+                if not set(route.archive_chunk_ids) <= set(self.archive_chunk_ids):
+                    raise ValueError("Route archive sources must be cited by the contention.")
+                if not set(route.research_source_ids) <= set(self.research_source_ids):
+                    raise ValueError("Route research sources must be cited by the contention.")
+        return self
 
     @model_validator(mode="after")
     def validate_basis(self):

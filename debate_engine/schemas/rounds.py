@@ -3,7 +3,7 @@
 from datetime import date
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_serializer
 
 from debate_engine.schemas.adaptation import JudgeProfile, ResearchPacket
 from debate_engine.schemas.retrieval import (
@@ -20,6 +20,28 @@ class PrepRules(BaseModel):
     minutes: int = Field(default=15, ge=1, le=180)
     internet_allowed: bool = False
     notes: str | None = None
+    cloud_inference_allowed: bool | None = None
+
+    @property
+    def inference_permitted(self) -> bool:
+        # Missing new permission preserves the legacy offline behavior.
+        return (
+            self.internet_allowed
+            if self.cloud_inference_allowed is None
+            else self.cloud_inference_allowed
+        )
+
+    @property
+    def profile(self) -> str:
+        return "nypdl" if self.minutes == 15 and not self.internet_allowed else "general"
+
+    @model_serializer(mode="wrap")
+    def serialize_compatible(self, handler):
+        data = handler(self)
+        # Historical packet fingerprints include exact JSON bytes.
+        if self.cloud_inference_allowed is None:
+            data.pop("cloud_inference_allowed", None)
+        return data
 
 
 class RoundInput(RetrievalRequest):

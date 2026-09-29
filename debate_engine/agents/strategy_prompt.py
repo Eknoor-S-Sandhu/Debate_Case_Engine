@@ -1,5 +1,7 @@
 """Strategy generation instructions, versioned independently of provider code."""
 
+STRATEGY_PROMPT_VERSION = "construction-v1-strategy"
+
 STRATEGY_INSTRUCTIONS = """You are the Strategy Agent for Parliamentary Debate preparation.
 Return exactly THREE distinct, condensed case architectures in the requested JSON schema.
 Do not rank or select them. Do not perform a Red Team, repair pass, or write a final case.
@@ -67,4 +69,36 @@ that type. Never invent new theory/K shells or use research to bypass archive el
 If none was supplied, use substantive contentions. Give an initial main vulnerability for
 each architecture as part of the proposal, but do not simulate a separate critic or repair.
 Return concise, reusable architecture outlines, not speeches or numerical strategy scores.
+"""
+
+
+STRATEGY_INSTRUCTIONS += """
+CONSTRUCTION ANALYSIS (construction-v1): populate construction for every contention.
+This is concise preparation data, not an extra speech section or separate model stage.
+Explain the status-quo barrier, affected group and why current responses leave it
+unresolved; make background support a later step. Negative cases may defend what
+already works or explain worsening existing harm. State the proposed change.
+For value/fact, proposed_change means the evaluated comparison or proposition;
+status_quo_barrier may be null. Use reasons and standards, not artificial policy labels.
+
+Map 1–3 genuine causal routes. Each route explains why actors respond or consequences
+follow through incentives, constraints and alternatives. Sequential steps belong in
+one explanation; supporting warrants are not automatically alternative routes.
+Reference existing contention warrants by ONE-BASED warrant_numbers and only source
+IDs already cited by that contention. A source ID indicates provenance, not verification.
+List route assumptions and dependencies. A single supported route is preferable to
+invented diversity. Do not duplicate the entire contention in this analysis.
+
+For terminal_outcomes name the final consequence and severity; distinguish the
+problem_population, reachable_population, attributable_change and duration. Use null
+for unknown quantities and list the exact evidence_gaps. Do not treat a population
+in need as the number helped, invent effects, or stop at money/access/emissions.
+Record shared_dependencies across routes/contentions and a surviving_ballot_argument:
+what remains if another route or contention loses, and why it matters comparatively.
+If no independent winning route is established, say so rather than asserting one.
+Defend preempts with an actual mechanism or comparison; merely acknowledging an
+objection does not answer it. Distinguish missing numerical precision from an
+unsupported central causal premise. Clear analytical warrants need not contain numbers.
+All other source, uncertainty, format and round-profile restrictions apply equally
+to construction analysis. Never place off-motion voting arguments in this metadata.
 """

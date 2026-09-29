@@ -67,6 +67,32 @@ def evaluate(
         raise typer.Exit(1)
 
 
+@app.command("resume-score")
+def resume_score(
+    packet_file: Path,
+    strategy_file: Path,
+    evaluation_file: Path,
+    output: Annotated[Path, typer.Option(help="New file; existing results are preserved.")],
+):
+    """Retry scoring only with the same configured provider; never select a strategy."""
+    if output.exists():
+        typer.echo("Choose a new output file to preserve earlier results.", err=True)
+        raise typer.Exit(1)
+    try:
+        packet = KnowledgePacket.model_validate_json(packet_file.read_text())
+        strategy = StrategyResult.model_validate_json(strategy_file.read_text())
+        checkpoint = EvaluationResult.model_validate_json(evaluation_file.read_text())
+    except (ValueError, OSError):
+        typer.echo("Could not read valid checkpoint inputs.", err=True)
+        raise typer.Exit(1) from None
+    result = EvaluationAgent().evaluate(packet, strategy, checkpoint=checkpoint)
+    with output.open("x") as target:
+        target.write(result.model_dump_json(indent=2))
+    typer.echo(f"Evaluation: {result.status} · Stage: {result.stage}")
+    if result.status != "completed":
+        raise typer.Exit(1)
+
+
 @app.command()
 def select(evaluation_file: Path, architecture_id: Annotated[int, typer.Argument(min=1, max=3)]):
     """Record your explicit choice in JSON; makes no network calls."""

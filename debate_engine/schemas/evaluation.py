@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, model_serializer, model_validator
 
 from debate_engine.schemas.diagnostics import InferenceCall
 from debate_engine.schemas.strategy import Architecture, StrictModel, Text
@@ -36,6 +36,22 @@ class Finding(StrictModel):
     weakness: Text
     opponent_response: Text
     repair_goal: Text
+
+    gap_kind: Literal["central_mechanism", "numerical_precision", "other"] | None = None
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema, handler):
+        schema = handler(core_schema)
+        schema.setdefault("required", []).append("gap_kind")
+        schema["properties"]["gap_kind"].pop("default", None)
+        return schema
+
+    @model_serializer(mode="wrap")
+    def serialize_compatible(self, handler):
+        data = handler(self)
+        if self.gap_kind is None:
+            data.pop("gap_kind", None)
+        return data
 
 
 class Critique(StrictModel):

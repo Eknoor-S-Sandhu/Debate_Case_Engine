@@ -11,6 +11,7 @@ from debate_engine.agents.case_prompt import (
 )
 from debate_engine.agents.diagnostics import invalid_output, run_inference
 from debate_engine.agents.evaluation import fingerprint
+from debate_engine.agents.round_rules import profile_instructions, validate_nypdl_offense
 from debate_engine.agents.strategy import StrategyProvider, build_context, validate_architectures
 from debate_engine.agents.strategy_provider import (
     create_provider,
@@ -36,6 +37,10 @@ def case_points(case):
 
 
 def validate_case(case, context, selected):
+    if context.get("profile") == "nypdl":
+        validate_nypdl_offense(case.weighing_mechanism)
+        for point in case_points(case):
+            validate_nypdl_offense(point.tagline + " " + point.text)
     kind = context["round"]["round_type"]
     if [c.title for c in case.contentions] != [c.title for c in selected.contentions]:
         raise ValueError("Case must preserve the selected contention titles and order.")
@@ -185,9 +190,9 @@ class CaseWriter:
             prompt_version=CASE_PROMPT_VERSION,
             **inference_metadata(self.settings, self.provider is not None),
         )
-        if not packet.plan.round_input.prep_rules.internet_allowed:
+        if not packet.plan.round_input.prep_rules.inference_permitted:
             result.status = "disabled_by_prep_rules"
-            result.warnings = ["Cloud case writing is disabled for offline prep."]
+            result.warnings = ["Cloud case writing is disabled by cloud-inference permission."]
             return result
         try:
             evaluation = EvaluationResult.model_validate(evaluation.model_dump())
@@ -249,6 +254,11 @@ class CaseWriter:
         data = {
             "context": context,
             "selected_architecture": selected.model_dump(mode="json"),
+            "selected_critique": next(
+                c.model_dump(mode="json")
+                for c in evaluation.critiques
+                if c.architecture_id == selected.architecture_id
+            ),
             "word_limit": result.word_limit,
             "budget": budget.model_dump(),
             "strategy_score": result.selected_strategy_score,
@@ -268,7 +278,12 @@ class CaseWriter:
                 return result
             try:
                 raw = run_inference(
-                    provider, result, stage, prompt, encoded, CaseDocument.model_json_schema()
+                    provider,
+                    result,
+                    stage,
+                    profile_instructions(prompt, context),
+                    encoded,
+                    CaseDocument.model_json_schema(),
                 )
             except Exception:
                 result.status = "failed"

@@ -286,3 +286,93 @@ The earlier feedback rerun did complete: its saved report records 817/975 words,
 seven requests, 693.538 seconds, preserved selection, and no research sources
 (`missing_credentials`). This supersedes the pending-run note above, not the
 pending human acceptance decision. The user has a Tavily key to configure locally.
+
+
+## NYPDL/UI segment and research checkpoint — 2026-09-27
+
+The current work is segmented at the user's request:
+1. NYPDL permissions, profile rules, UI polish, saved-checkpoint loading and validation.
+2. Research-backed transit case: complete scoring, human architecture selection,
+   case writing, strategic review and aloud rehearsal.
+3. Broader V1 validation across fact/value/policy and repeated runs.
+4. Performance optimization after human quality approval.
+
+Tavily is configured and verified. `v1-research-transit-20260928` preserves an initial
+restricted-network preparation failure and a successful network-enabled retry
+(`packet-research.json`): three queries, 11 research sources, 23 archive items.
+A local review retained five relevant sources and added explicit limitations in
+`packet-reviewed.json`; original excerpts and unverified labels were preserved.
+The source-review record documents direct/indexed access and unresolved evidence.
+
+The user specifically approved sending the reviewed private archive/research packet
+to ChatGPT-authenticated Codex CLI after automatic approval review requested that
+specific egress approval. Strategy, critique and repair completed. Scoring failed
+with `rate_limit_or_quota`. Strategy and partial evaluation are saved; no selection
+or case writing occurred. Do not retry or change providers while the user-requested
+segment pause is in effect. A future recovery should reuse accepted earlier stages
+rather than repeat the whole run, and must retain handoff/source validation.
+
+Preparation now records retrieval/research timing outside packet schemas; existing
+inference timings remain. No claim of speed improvement or V1 acceptance is made.
+
+Segment 1 completed: implementation tests and full-project Ruff/whitespace checks
+passed. The full suite passed before the checkpoint loader was added; the affected
+UI/agent suites and loader tests passed afterward. All 25 historical saved
+packet/strategy handoffs matched their original fingerprints. Desktop (1365px) and
+mobile (390px) visual checks passed for setup and saved strategy comparison, including
+stacked cards. The localhost preview was restarted after a stale-module import error;
+the restarted app successfully loaded the real reviewed research checkpoint without
+making provider calls. The research evaluation contains three accepted critiques and
+three accepted repairs, with no rankings or selection because scoring hit quota.
+
+Work is paused after Segment 1 per the user's instruction. No further provider calls,
+case generation, broader benchmarks, or performance optimization until they continue.
+
+## Segment 2 resumed — scoring recovery
+
+The user authorized continuation. The existing, specifically approved transit
+packet was reused through the same Codex CLI provider. A scoring-only recovery
+completed in 52.697 seconds and saved `evaluation-resumed-01.json`. Original
+strategy/critique/repair/failure artifacts remain unchanged; the recovered result
+retains their call diagnostics. Three repaired options received model scores:
+poverty/environment 66, healthcare/enforcement 62, operations/social participation
+58. These are subjective scores, not independent human assessments.
+
+The app and CLI now support this recovery without rerunning accepted critiques or
+repairs. The latest completed evaluation loads in the UI with no selection. The user
+has been asked to choose the repaired strategy before case writing. The full test
+suite and Ruff passed after the recovery change. The broader three-scenario subset
+(transit-opp, privacy-aff, social-neg) passed dry-run selection; no new broader live
+benchmark or performance optimization has run at this checkpoint.
+
+## Selected research case completed — 2026-09-28
+
+The user selected repaired architecture 1 (poverty/environment). Selection is saved
+in `evaluation-selected-01.json`. The first writing attempt saved failure diagnostics
+in `case-option-1.json`: draft accepted at 820 words, final improvement hit quota.
+The internal draft was not persisted, so recovery required repeating drafting.
+
+Authorized continuation completed draft and improvement in 81.548 and 83.678 seconds
+respectively (165.226 seconds for writing calls only, not full engine runtime).
+New artifacts: `case-option-1-retry-01.json`, `case-option-1-retry-01.md`, and the
+speech-only `speech-option-1-retry-01.md`. Earlier artifacts were preserved.
+The case is 862/975 words, estimated 344.8 seconds at 150 wpm, leaving 75.2 seconds
+of a seven-minute speech. No trim call was needed. Saved source/quote checks,
+selected contention structure, all three handoff fingerprints, exact Net Benefits
+wording and word budget passed. Full pytest suite, Ruff and whitespace checks passed.
+
+Agent quality review: terminal outcomes are explicit (food/utility deprivation and
+climate-related harm), and the two routes concern distinct beneficiaries/mechanisms.
+However neither independent full-cost ballot threshold is established. The speech
+repeatedly concedes unresolved comparisons with automatic concessions and service
+investment; beneficiary counts and terminal-impact magnitudes remain unquantified.
+The Luxembourg estimate is appropriately bounded and not treated as proof of local
+health gains. This is a completed research-informed practice draft, not human quality
+acceptance or a competition-ready case. Human review and aloud rehearsal are pending.
+
+Next: review this draft with the user; resolve geographic scope and decisive evidence
+gaps before claiming quantified impacts. Broader fact/value/policy validation and
+repetitions remain outstanding. Performance optimization remains gated on human
+quality approval; this isolated writing duration does not establish the under-five-
+minute full-engine target. Persisting validated intermediate case drafts for safe
+improvement-only recovery is a reliability follow-up, not implemented here.
