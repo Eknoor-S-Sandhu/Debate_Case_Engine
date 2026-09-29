@@ -379,3 +379,103 @@ def test_imported_totals_cannot_override_actual_rubric(setup):
     exported["rankings"][0]["total"] = 100
     with pytest.raises(ValueError, match="rubric"):
         EvaluationResult.model_validate(exported)
+
+
+def test_resume_scores_only_and_preserves_failed_history(setup):
+    settings, knowledge, strategy = setup
+    failed = EvaluationAgent(settings, provider=PipelineProvider(fail_at=2)).evaluate(
+        knowledge, strategy
+    )
+    before = failed.model_dump_json()
+    provider = PipelineProvider(values=[responses()[2]])
+    result = EvaluationAgent(settings, provider=provider).evaluate(
+        knowledge, strategy, checkpoint=failed
+    )
+    assert result.status == "completed", result.warnings
+    assert len(provider.calls) == 1
+    assert "SCORE THE REPAIRED" in provider.calls[0][0]
+    assert result.repairs == failed.repairs
+    assert result.critiques == failed.critiques
+    assert len(result.inference_calls) == 4
+    assert result.inference_calls[2].status == "failed"
+    assert result.selected_architecture_id is None
+    assert failed.model_dump_json() == before
+
+
+@pytest.mark.parametrize("corruption", ["fingerprint", "provider", "repair", "finding", "stage"])
+def test_resume_rejects_bad_checkpoint_before_provider(setup, corruption):
+    settings, knowledge, strategy = setup
+    failed = EvaluationAgent(settings, provider=PipelineProvider(fail_at=2)).evaluate(
+        knowledge, strategy
+    )
+    if corruption == "fingerprint":
+        failed.packet_fingerprint = "different"
+    elif corruption == "provider":
+        failed.provider = "gemini"
+    elif corruption == "repair":
+        failed.repairs[0].architecture.contentions[0].archive_chunk_ids = ["invented"]
+    elif corruption == "finding":
+        failed.repairs[0].responses[0].finding_number = 8
+    else:
+        failed.stage = "repair"
+    provider = PipelineProvider(values=[responses()[2]])
+    result = EvaluationAgent(settings, provider=provider).evaluate(
+        knowledge, strategy, checkpoint=failed
+    )
+    assert result.status == "invalid_output"
+    assert not provider.calls
+
+
+def test_resume_cli_preserves_existing_output_before_any_requests(tmp_path, monkeypatch):
+    target = tmp_path / "result.json"
+    target.write_text("original")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Must not contact provider")
+
+    monkeypatch.setattr(EvaluationAgent, "evaluate", forbidden)
+    result = CliRunner().invoke(
+        app,
+        [
+            "resume-score",
+            "packet.json",
+            "strategy.json",
+            "evaluation.json",
+            "--output",
+            str(target),
+        ],
+    )
+    assert result.exit_code == 1
+    assert target.read_text() == "original"
+
+
+def test_ui_retry_scoring_uses_checkpoint_once(setup, monkeypatch):
+    settings, knowledge, strategy = setup
+    failed = EvaluationAgent(settings, provider=PipelineProvider(fail_at=2)).evaluate(
+        knowledge, strategy
+    )
+    completed = EvaluationAgent(settings, provider=PipelineProvider()).evaluate(knowledge, strategy)
+    monkeypatch.setattr(RoundDirector, "prepare", lambda *args: knowledge)
+    monkeypatch.setattr(RoundDirector, "strategize", lambda *args, **kwargs: strategy)
+    monkeypatch.setattr(RoundDirector, "evaluate", lambda *args: failed)
+    calls = []
+
+    def resume(self, packet, supplied_strategy, *, checkpoint):
+        calls.append(checkpoint)
+        return completed
+
+    monkeypatch.setattr(EvaluationAgent, "evaluate", resume)
+    page = AppTest.from_file(
+        str(Path(__file__).resolve().parents[1] / "ui/pages/1_Round_preparation.py")
+    ).run()
+    page.text_area(key="motion").set_value("Transit")
+    page.button[1].click().run()
+    page.button(key="generate_strategies").click().run()
+    page.button(key="evaluate_strategies").click().run()
+    page.button(key="resume_scoring").click().run()
+    assert not page.exception
+    assert calls == [failed]
+    assert page.session_state["evaluation_output"].status == "completed"
+    assert page.session_state["evaluation_output"].selected_architecture_id is None
+    page.run()
+    assert calls == [failed]

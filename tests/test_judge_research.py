@@ -63,7 +63,9 @@ def test_explicit_category_wins_and_specific_preferences_survive():
 
 def test_judge_applied_before_retrieval_and_user_overrides_win(settings):
     context = RoundInput(
-        motion="Conditionality theory", judge_notes="Judge: tech. No theory. No Ks."
+        motion="Conditionality theory",
+        judge_notes="Judge: tech. No theory. No Ks.",
+        prep_rules={"minutes": 20},
     )
     plan = RoundDirector(settings).plan(context)
     assert plan.retrieval_request.judge_category == "tech"
