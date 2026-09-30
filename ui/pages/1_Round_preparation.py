@@ -415,7 +415,8 @@ def restore_saved(settings):
         st.session_state.update(
             {
                 "motion": context.motion,
-                "side": context.side,
+                "side": {Side.AFF: Side.GOV, Side.NEG: Side.OPP}.get(context.side, context.side),
+                "infoslide": context.infoslide or "",
                 "round_type": context.round_type,
                 "judge": context.judge_category,
                 "judge_notes": context.judge_notes or "",
@@ -483,11 +484,33 @@ def main():
             motion = st.text_area(
                 "Motion", key="motion", placeholder="THW make public transport free"
             )
+            infoslide = st.text_area("Infoslide (optional)", key="infoslide")
             left, right = st.columns(2)
             with left:
-                side = st.selectbox("Side", [None, *Side], key="side")
+                side = st.selectbox(
+                    "Side",
+                    [Side.GOV, Side.OPP],
+                    index=None,
+                    format_func=lambda x: "Government" if x == Side.GOV else "Opposition",
+                    key="side",
+                )
                 round_type = st.selectbox("Round type", [None, *RoundType], key="round_type")
-                judge = st.selectbox("Judge category", [None, *JudgeCategory], key="judge")
+                judge = st.selectbox(
+                    "Judge category",
+                    [
+                        JudgeCategory.FULLY_LAY,
+                        JudgeCategory.FLAY,
+                        JudgeCategory.FLOW,
+                        JudgeCategory.TECH,
+                    ],
+                    format_func=lambda x: {
+                        "fully_lay": "Lay",
+                        "flay": "Flay",
+                        "flow": "Flow",
+                        "tech": "Tech",
+                    }[x],
+                    key="judge",
+                )
             with right:
                 minutes = st.number_input("Prep minutes", 1, 180, 15, key="prep_minutes")
                 internet = st.checkbox("Round rules permit internet research", key="internet")
@@ -496,7 +519,7 @@ def main():
                     "15 minutes + research off selects NYPDL: no theory, Ks or tricks. "
                     "Cloud model access is separate from web research."
                 )
-            judge_notes = st.text_area("Judge paradigm or notes", key="judge_notes")
+            judge_notes = st.text_area("Judge Paradigm/Notes", key="judge_notes")
             concepts = st.text_area("Extra concepts (one per line)", key="round_concepts")
             with st.expander("Advanced · general-format retrieval"):
                 theory = st.selectbox("Include theory", [None, True, False])
@@ -508,6 +531,7 @@ def main():
             try:
                 context = RoundInput(
                     motion=motion,
+                    infoslide=infoslide.strip() or None,
                     side=side,
                     round_type=round_type,
                     judge_category=judge,

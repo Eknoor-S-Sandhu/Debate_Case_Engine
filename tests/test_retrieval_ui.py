@@ -81,7 +81,7 @@ def test_startup_does_not_search(tester):
 
 def test_filters_provenance_scores_and_hierarchy(tester):
     app, calls, _, _ = tester
-    app.selectbox(key="side").select("aff")
+    app.selectbox(key="side").select("gov")
     app.selectbox(key="source").select("personal")
     app.selectbox(key="judge").select("tech")
     app.selectbox(key="theory").select(False)
@@ -89,7 +89,7 @@ def test_filters_provenance_scores_and_hierarchy(tester):
     app.text_area(key="concepts").set_value(" jobs \n wages ")
     submit(app)
     request = calls[0]
-    assert request.side.value == "aff"
+    assert request.side.value == "gov"
     assert request.source_group.value == "personal"
     assert request.judge_category.value == "tech"
     assert request.include_theory is False

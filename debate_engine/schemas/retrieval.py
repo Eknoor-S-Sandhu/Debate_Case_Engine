@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
 
 from debate_engine.schemas.chunk import DebateChunk
 from debate_engine.schemas.document import RoundType, Side, SourceGroup
@@ -38,6 +38,7 @@ class RetrievalRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     motion: str
+    infoslide: str | None = Field(default=None, max_length=20000)
     side: Side | None = None
     round_type: RoundType | None = None
     prep_format: str | None = None
@@ -52,6 +53,13 @@ class RetrievalRequest(BaseModel):
     explicit_concepts: list[str] = Field(default_factory=list)
     user_queries: list[str] = Field(default_factory=list)
     source_group: SourceGroup | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_compatible(self, handler):
+        data = handler(self)
+        if self.infoslide is None:
+            data.pop("infoslide", None)
+        return data
 
     @field_validator("motion")
     @classmethod

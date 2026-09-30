@@ -8,6 +8,7 @@ import copy
 import pytest
 
 from debate_engine.agents.case_writer import CaseWriter, count_words, render_case
+from debate_engine.schemas.case import CaseDocument
 from debate_engine.schemas.evaluation import EvaluationResult
 from tests.test_case_writer import CaseProvider, case_output, inputs
 from tests.test_construction import construction
@@ -42,7 +43,7 @@ def test_construction_and_critique_survive_all_writer_stages(tmp_path, trim):
     if trim:
         long = copy.deepcopy(final)
         for point in long["contentions"][1]["uniqueness"]:
-            point["text"] = "Background " * 400
+            point["text"] = "word " * 400
         values.insert(0, long)
     provider = CaseProvider(values)
     result = CaseWriter(settings, provider=provider).write(knowledge, strategy, evaluation)
@@ -55,7 +56,9 @@ def test_construction_and_critique_survive_all_writer_stages(tmp_path, trim):
         assert "missing effect size is different from a missing mechanism" in instructions
         assert "Preempts must defend" in instructions
     for i in range(1, len(provider.calls)):
-        assert provider.calls[i][1]["case"] == values[i - 1]
+        assert provider.calls[i][1]["case"] == CaseDocument.model_validate(
+            values[i - 1]
+        ).model_dump(mode="json")
     speech = render_case(result.case, knowledge)
     assert "**Weighing Mechanism**: Net Benefits" in speech
     assert "**UQ:**" in speech and "**IMPX:**" in speech

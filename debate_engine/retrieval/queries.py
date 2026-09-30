@@ -186,7 +186,11 @@ def generate_retrieval_queries(
     explicit_tokens = [
         token for concept in request.explicit_concepts for token in concept_tokens(concept)
     ]
-    core_tokens = list(dict.fromkeys([*motion_tokens, *explicit_tokens]))
+    core_tokens = list(
+        dict.fromkeys(
+            [*motion_tokens, *explicit_tokens, *concept_tokens(request.infoslide or "")[:60]]
+        )
+    )
     core = " ".join(core_tokens)
     token_set = set(core_tokens)
 

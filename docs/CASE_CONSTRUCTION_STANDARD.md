@@ -144,3 +144,25 @@ is intentionally rejected by the existing version check. No historical files wer
 rewritten. No live model call or calibrated semantic-quality evaluation occurred:
 the curated expected-findings set remains the review key for Milestone 5, and
 prompt instructions do not prove that a model will identify every cosmetic repair.
+
+## Milestone 4 implementation — 2026-09-29
+
+Writer prompt version `construction-v1-writer` applies the standard to drafting,
+optional trimming and final improvement. The selected critique now accompanies
+its repaired architecture in every writing request, so finding numbers and repair
+statuses have their original context. Existing construction maps are retained;
+legacy selected strategies remain usable without inventing replacement offense.
+
+Instructions require connected uniqueness, behavioral warrants, honest dependencies,
+terminal consequences and substantive preempts. Detailed research tasks remain in
+preparation notes while material uncertainty remains beside the spoken claim.
+Trimming prioritizes repetition over essential reasoning. The existing renderer,
+speech schema, selection rules, source checks and inference-stage count are unchanged.
+
+Scripted pipeline tests cover two-pass and trim-required writing, selected map and
+critique transport at every stage, prior validated draft handoff, source attribution,
+verification notes, speech formatting, word budget and input immutability. These
+checks verify transport and contracts, not actual model reasoning quality. The trim
+fixture was corrected to exceed the speech budget without exceeding per-point text
+limits, and handoff comparison uses normalized validated text. Live comparisons and
+human review remain Milestone 5; no new case was generated in this milestone.

@@ -66,11 +66,32 @@ def main() -> None:
         motion = st.text_area("Motion or search query", key="motion")
         left, middle, right = st.columns(3)
         with left:
-            side = st.selectbox("Side context", [None, *Side], key="side")
+            side = st.selectbox(
+                "Side context",
+                [Side.GOV, Side.OPP],
+                index=None,
+                format_func=lambda x: "Government" if x == Side.GOV else "Opposition",
+                key="side",
+            )
             source = st.selectbox("Source filter", [None, *SourceGroup], key="source")
         with middle:
             round_type = st.selectbox("Round type", [None, *RoundType], key="round_type")
-            judge = st.selectbox("Judge category", [None, *JudgeCategory], key="judge")
+            judge = st.selectbox(
+                "Judge category",
+                [
+                    JudgeCategory.FULLY_LAY,
+                    JudgeCategory.FLAY,
+                    JudgeCategory.FLOW,
+                    JudgeCategory.TECH,
+                ],
+                format_func=lambda x: {
+                    "fully_lay": "Lay",
+                    "flay": "Flay",
+                    "flow": "Flow",
+                    "tech": "Tech",
+                }[x],
+                key="judge",
+            )
         with right:
             arguments = st.number_input(
                 "Full arguments",

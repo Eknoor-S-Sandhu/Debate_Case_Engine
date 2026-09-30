@@ -3,6 +3,15 @@
 A Parliamentary Debate preparation system with local archive retrieval and
 optional cloud research and strategy generation.
 
+## Writing workspace
+
+Launch the new Casebook website with `.venv/bin/python -m ui.server`, then open
+http://127.0.0.1:8768. See [launch and usage instructions](docs/WRITING_WORKSPACE.md).
+The existing Streamlit interface remains available.
+
+Construction reform milestones 1–4 are implemented. Milestone 5 live comparisons
+remain paused pending review of the website.
+
 ## Current status: NYPDL preparation and research validation
 
 The Streamlit workflow now separates setup, sources, strategy selection and the final

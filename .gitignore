@@ -69,3 +69,6 @@ sentence_transformers/
 .DS_Store
 .idea/
 .vscode/
+
+# Local UI review captures may contain private case or source text.
+output/**/*.png
